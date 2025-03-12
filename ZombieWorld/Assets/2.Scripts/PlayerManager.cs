@@ -83,10 +83,7 @@ public class PlayerManager : MonoBehaviour
         pitch -= mouseY;
         //각도 제한(3인칭게임에서 보통 -45 ~ 45 도 정도 쓴다) 
         pitch = Mathf.Clamp(pitch, -45f, 45f);
-    }
 
-    void PlayerMovement()
-    {
         isGround = characterController.isGrounded;
 
 
@@ -95,6 +92,8 @@ public class PlayerManager : MonoBehaviour
             velocity.y = -2f;
         }
     }
+
+    
     void CameraSet()
     {
         if (Input.GetKeyDown(KeyCode.V))
@@ -109,6 +108,11 @@ public class PlayerManager : MonoBehaviour
             Debug.Log(isRotaterAroundPlayer ? "카메라가 주위를 회전합니다." : "플레이어의 시야에 따라서 회전합니다.");
         }
 
+        
+
+    }
+    void PlayerMovement()
+    {
         if (isFirstPerson)
         {
             FirstPersonMovement();
@@ -117,7 +121,6 @@ public class PlayerManager : MonoBehaviour
         {
             ThirdPersonMovement();
         }
-
     }
 
     void AimSet()
@@ -173,7 +176,7 @@ public class PlayerManager : MonoBehaviour
         }
     }
 
-    void FireSet()
+    void Fire()
     {
         if (Input.GetMouseButtonDown(0))
         {
@@ -207,7 +210,7 @@ public class PlayerManager : MonoBehaviour
         }
     }
 
-    void RunSet()
+    void Run()
     {
         if (Input.GetKey(KeyCode.LeftShift))
         {
@@ -258,12 +261,11 @@ public class PlayerManager : MonoBehaviour
     {
 
         MouseSet();
-        
-        PlayerMovement();
         CameraSet();
+        PlayerMovement();
         AimSet();
-        FireSet();
-        RunSet();
+        Fire();
+        Run();
         WeaponChange();
         AnimationSet();
 
@@ -408,11 +410,7 @@ public class PlayerManager : MonoBehaviour
             transform.position = Vector3.zero;
             characterController.enabled = true;
         }
-        if(other.gameObject.CompareTag("Item"))
-        {
-            GetItem();
-            other.gameObject.SetActive(false);
-        }
+        
     }
 
     
