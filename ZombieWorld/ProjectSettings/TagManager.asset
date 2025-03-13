@@ -7,6 +7,9 @@ TagManager:
   - CinemachineTarget
   - PlayerDamage
   - Item
+  - Zombie
+  - FxTemporaire
+  - Weapon
   layers:
   - Default
   - TransparentFX
@@ -15,8 +18,8 @@ TagManager:
   - Water
   - UI
   - Player
-  - 
-  - 
+  - Zombie
+  - Item
   - 
   - 
   - 
