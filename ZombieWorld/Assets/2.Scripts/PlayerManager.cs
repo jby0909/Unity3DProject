@@ -158,9 +158,11 @@ public class PlayerManager : MonoBehaviour
         //개인 해석
         if (Input.GetMouseButtonDown(1) && isGetWeapon && isUseWepon) //마우스 오른쪽 버튼 눌렀을 때
         {
+            //조준상태를 true로 설정
             isAim = true;
+            //crosshair가 화면상에 보이게 활성화
             crosshairObj.SetActive(true);
-            //???????
+            //애니메이션 상체가 돌아가있어서 오프셋 조절해서 화면상 보이기 좋게 맞춤??
             multiAimConstraint.data.offset = new Vector3(-50, 0, 0);
             //animator.SetBool("isAim", isAim);
             animator.SetLayerWeight(1, 1); // 1번 레이어를 1로 활성화
@@ -174,13 +176,13 @@ public class PlayerManager : MonoBehaviour
             if (isFirstPerson) //1인칭 시점이면 -> 카메라 자체의 줌기능
             {
                 SetTargetFOV(zoomeFov); //확대시 시야각을 목표 시야각으로 설정
-                zoomCoroutine = StartCoroutine(ZoomFieldOfView(targetFov)); //줌을 진행할 코루틴을 실행
+                zoomCoroutine = StartCoroutine(ZoomFieldOfView(targetFov)); //줌을 진행할 코루틴을 실행하고 zoomCoroutine변수에 대입
 
             }
             else // 3인칭 시점이면 -> 카메라의 위치 이동
             {
                 SetTargetDistance(zoomeDistance); // 확대시 거리를 목표 거리로 설정
-                zoomCoroutine = StartCoroutine(ZoomCamera(targetDistance)); //줌을 진행할 코루틴을 실행
+                zoomCoroutine = StartCoroutine(ZoomCamera(targetDistance)); //줌을 진행할 코루틴을 실행하고 zoomCoroutine변수에 대입
             }
         }
 
@@ -190,7 +192,7 @@ public class PlayerManager : MonoBehaviour
             crosshairObj.SetActive(false);
             multiAimConstraint.data.offset = new Vector3(0, 0, 0);
             //animator.SetBool("isAim", isAim);
-            animator.SetLayerWeight(1, 0); // 1번 레이어를 1로 활성화
+            animator.SetLayerWeight(1, 0); // 1번 레이어를 0으로
 
             if (zoomCoroutine != null)
             {
@@ -237,19 +239,12 @@ public class PlayerManager : MonoBehaviour
                 //두개의 물체만 받아오기
                 if(hits.Length > 0)
                 {
-                    int count = 0;
-                    foreach (RaycastHit hit in hits)
+                    for(int i = 0; i < hits.Length && i < 2; i++)
                     {
-                        if(count > 1)
-                        {
-                            break;
-                            
-                        }
-                        Debug.Log("충돌 : " + hit.collider.name);
-                        Debug.DrawLine(ray.origin, hit.point, Color.red, 2.0f);
-                        count++;
+                        Debug.Log("충돌 : " + hits[i].collider.name);
+                        //일단 데미지를 30 넣기
+                        hits[i].collider.GetComponent<ZombieManager>().TakeDamage(30.0f);
                     }
-
                 }
                 else
                 {
@@ -338,6 +333,7 @@ public class PlayerManager : MonoBehaviour
         Vector3 direction = itemGetPos.forward;
         RaycastHit[] hits;
         hits = Physics.BoxCastAll(origin, boxSize / 2, direction, Quaternion.identity, castDistance, itemLayer); //중심좌표, 반지름, 방향, 회전기본세팅,거리, 충돌할대상레이어
+        DebugBox(origin, direction);
         foreach (RaycastHit hit in hits)
         {
             if (hit.collider.gameObject.CompareTag("Weapon"))
@@ -358,6 +354,22 @@ public class PlayerManager : MonoBehaviour
         aimTarget.position = ray.GetPoint(10.0f);
     }
 
+    void Dead()
+    {
+        if(Input.GetKeyDown(KeyCode.Alpha2))
+        {
+            animator.SetTrigger("Dead");
+        }
+    }
+
+    void Throw()
+    {
+        if(Input.GetKeyDown(KeyCode.R))
+        {
+            animator.SetTrigger("Throw");
+        }
+    }
+
     void Update()
     {
 
@@ -372,6 +384,9 @@ public class PlayerManager : MonoBehaviour
 
 
         GetItemOperate();
+
+        Throw();
+        Dead();
 
 
         //애니메이션의 speed 조절
@@ -532,7 +547,34 @@ public class PlayerManager : MonoBehaviour
     }
 
     
+    void DebugBox(Vector3 origin, Vector3 direction)
+    {
+        Vector3 endPoint = origin + direction * castDistance;
 
+        Vector3[] corners = new Vector3[8];
+        corners[0] = origin + new Vector3(-boxSize.x, -boxSize.y, -boxSize.z) / 2;
+        corners[1] = origin + new Vector3(boxSize.x, -boxSize.y, -boxSize.z) / 2;
+        corners[2] = origin + new Vector3(-boxSize.x, boxSize.y, -boxSize.z) / 2;
+        corners[3] = origin + new Vector3(boxSize.x, boxSize.y, -boxSize.z) / 2;
+        corners[4] = origin + new Vector3(-boxSize.x, -boxSize.y, boxSize.z) / 2;
+        corners[5] = origin + new Vector3(boxSize.x, -boxSize.y, boxSize.z) / 2;
+        corners[6] = origin + new Vector3(-boxSize.x, boxSize.y, boxSize.z) / 2;
+        corners[7] = origin + new Vector3(boxSize.x, boxSize.y, boxSize.z) / 2;
+
+        Debug.DrawLine(corners[0], corners[1], Color.green, 3.0f);
+        Debug.DrawLine(corners[1], corners[3], Color.green, 3.0f);
+        Debug.DrawLine(corners[3], corners[2], Color.green, 3.0f);
+        Debug.DrawLine(corners[2], corners[0], Color.green, 3.0f);
+        Debug.DrawLine(corners[4], corners[5], Color.green, 3.0f);
+        Debug.DrawLine(corners[5], corners[7], Color.green, 3.0f);
+        Debug.DrawLine(corners[7], corners[6], Color.green, 3.0f);
+        Debug.DrawLine(corners[6], corners[4], Color.green, 3.0f);
+        Debug.DrawLine(corners[0], corners[4], Color.green, 3.0f);
+        Debug.DrawLine(corners[1], corners[5], Color.green, 3.0f);
+        Debug.DrawLine(corners[2], corners[6], Color.green, 3.0f);
+        Debug.DrawLine(corners[3], corners[7], Color.green, 3.0f);
+        Debug.DrawRay(origin, direction * castDistance, Color.green);
+    }
    
 
 }
