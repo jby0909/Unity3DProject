@@ -104,6 +104,7 @@ public class ZombieManager : MonoBehaviour
     {
         Debug.Log(gameObject.name + " : 대기중");
         animator.SetBool("isWalk", false);
+        animator.SetBool("isRun", false);
 
 
 
@@ -134,7 +135,8 @@ public class ZombieManager : MonoBehaviour
             if (patrolPoints.Length > 0)
             {
                 animator.SetBool("isWalk", true);
-                animationSpeed = 2.0f; // 걸을 때 애니메이션이 유난히 느려서 속도 올려줌
+                animator.SetBool("isRun", false);
+                
                 //순찰 지점의 위치를 타겟 위치로 지정
                 Transform targetPoint = patrolPoints[currentPoint];
                 //현재위치로부터 타겟위치까지의 방향 지정
@@ -183,8 +185,9 @@ public class ZombieManager : MonoBehaviour
             Vector3 direction = (target.position - transform.position).normalized;
             transform.position += direction * moveSpeed * Time.deltaTime;
             transform.LookAt(target.transform);
-            animator.SetBool("isWalk", true);
-            animationSpeed = 2.0f; // 걸을 때 애니메이션이 유난히 느려서 속도 올려줌
+            animator.SetBool("isRun", true);
+            animator.SetBool("isWalk", false);
+            
 
             //이부분이 왜 이렇게 고쳤을 때 되는지 생각해보기(아직 이해가 잘 안됨. 왜 되지??)
             if (distance < attackRange)
@@ -207,7 +210,7 @@ public class ZombieManager : MonoBehaviour
         Debug.Log(gameObject.name + " : 플레이어 공격");
         transform.LookAt(target.position);
         animator.SetTrigger("Attack");
-        animationSpeed = 1.0f; // 공격할 때 애니메이션 본래속도로
+        audioSource.PlayOneShot(audioClipScream);
 
         yield return new WaitForSeconds(attackDelay);
 
@@ -230,7 +233,8 @@ public class ZombieManager : MonoBehaviour
     {
         Debug.Log(gameObject.name + " : 도망중");
         animator.SetBool("isWalk", true);
-        animationSpeed = 2.0f; // 걸을 때 애니메이션이 유난히 느려서 속도 올려줌
+        animator.SetBool("isRun", false);
+
         //타겟위치 -> 현재위치 방향(타겟과 반대방향으로 도망감)
         Vector3 evadeDirection = (transform.position - target.position).normalized;
         float evadeTime = 3.0f;
