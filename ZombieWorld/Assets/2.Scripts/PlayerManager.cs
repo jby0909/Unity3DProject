@@ -3,7 +3,7 @@ using System.Collections;
 using UnityEditorInternal.Profiling.Memory.Experimental;
 using UnityEngine;
 using UnityEngine.Animations.Rigging; // NameSpace : 소속
-
+using UnityEngine.UI;
 
 public class PlayerManager : MonoBehaviour
 {
@@ -83,10 +83,29 @@ public class PlayerManager : MonoBehaviour
     public ParticleSystem WeaponEffect; // 파티클(총 쏠 때 효과)
 
     private float rifleFireDelay = 0.5f;
+
+
+    public ParticleSystem DamageParticleSystem; //데미지 효과 파티클
+    public AudioClip audioClipDamage; //데미지 받았을때 효과음
+
+
+    public Text bulletText; //총알 갯수 ui
+    private int firebulletCount = 30; //장전한 총알 갯수
+    private int savebulletCount = 120; //가지고 있는 총알 갯수
+
+    public AudioClip audioClipItemGet; //item획득시 사운드
+    public AudioClip audioClipEmptyBullet; //총알 다 썼을 때 fire시도하면 나는 소리
+
+    public GameObject flashLightObj; //플레이어가 비추는 빛(flash light)
+    private bool isFlashLightOn = false;
+
+    public AudioClip audioClipFlashLightOn;
+
+    private int playerHp = 100;
+
     
 
-    //총알 변수(임시)
-    int bulletCount = 10;
+
 
     void Start()
     {
@@ -101,6 +120,9 @@ public class PlayerManager : MonoBehaviour
         RifleM4Obj.SetActive(false);
         crosshairObj.SetActive(false);
         weaponIconObj.SetActive(false);
+        bulletText.text = $"{firebulletCount}/{savebulletCount}";
+        bulletText.gameObject.SetActive(false);
+        flashLightObj.SetActive(false);
     }
 
     void MouseSet()
@@ -219,10 +241,21 @@ public class PlayerManager : MonoBehaviour
         if (Input.GetMouseButtonDown(0))
         {
             //조준상태이고, 총을 쏘고있는 중이 아닌 때 사격
-            if (isAim && !isFire && bulletCount > 0)
+            if (isAim && !isFire)
             {
-                bulletCount--;
-                Debug.Log("남은 총알 갯수 : " + bulletCount);
+                if(firebulletCount > 0)
+                {
+                    firebulletCount--;
+                    bulletText.text = $"{firebulletCount}/{savebulletCount}";
+                    bulletText.gameObject.SetActive(true);
+                }
+                else
+                {
+                    //총알이 없는 소리 재생
+                    audioSource.PlayOneShot(audioClipEmptyBullet);
+                    return;
+                }
+                
 
                 //Weapon Type에 따라서 MaxDistance Set하도록 수정해야 함
                 weaponMaxDistance = 1000.0f;
@@ -242,8 +275,15 @@ public class PlayerManager : MonoBehaviour
                     for(int i = 0; i < hits.Length && i < 2; i++)
                     {
                         Debug.Log("충돌 : " + hits[i].collider.name);
-                        //일단 데미지를 30 넣기
-                        hits[i].collider.GetComponent<ZombieManager>().TakeDamage(30.0f);
+
+                        //파티클을 raycast가 충돌한 위치에 생성
+                        ParticleSystem particle = Instantiate(DamageParticleSystem, hits[i].point, Quaternion.identity);
+                        particle.Play();
+                        
+                        audioSource.PlayOneShot(audioClipDamage); //데미지 받은 소리 재생
+
+                        //일단 데미지를 10 넣기
+                        hits[i].collider.GetComponent<ZombieManager>().TakeDamage(10.0f);
                     }
                 }
                 else
@@ -251,24 +291,6 @@ public class PlayerManager : MonoBehaviour
                     Debug.DrawLine(ray.origin, ray.origin + ray.direction * weaponMaxDistance, Color.green);
                 }
 
-                
-
-                //if (Physics.Raycast(ray, out hit, weaponMaxDistance, TargetLayerMask)) // 만약 사정거리내에 ray가 충돌한다면 hit에 충돌한 객체의 정보가 들어가고 Raycast()는 true를 반환함  Physics.Raycast(ray, out hit, weaponMaxDistance, 레이어마스크)도 있음
-                //{
-                //    Debug.Log("Hit : " + hit.collider.gameObject.name);
-                //    Debug.DrawLine(ray.origin, hit.point, Color.red, 2.0f); // ray가 눈에 보이게 그려줌
-                //    if (hit.collider.gameObject.CompareTag("Zombie"))
-                //    {
-                //        //체력 깎기(임시로 1로 지정)
-                //        hit.collider.gameObject.GetComponent<ZombieManager>().Hp -= 1;
-                //        Debug.Log("Zombie Hp : " + hit.collider.gameObject.GetComponent<ZombieManager>().Hp);
-                //    }
-                //    //hit.collider.gameObject.SetActive(false); //맞은 물체 사라지게
-                //}
-                //else
-                //{
-                //    Debug.DrawLine(ray.origin, ray.origin + ray.direction * weaponMaxDistance, Color.green, 2.0f);
-                //}
             }
 
         }
@@ -318,8 +340,6 @@ public class PlayerManager : MonoBehaviour
         {
             //e키 입력시 애니메이션 실행
             animator.SetTrigger("PickUp");
-
-            
         }
     }
 
@@ -338,11 +358,27 @@ public class PlayerManager : MonoBehaviour
         {
             if (hit.collider.gameObject.CompareTag("Weapon"))
             {
+                hit.collider.gameObject.SetActive(false);
                 isGetWeapon = true;
                 weaponIconObj.SetActive(true);
                 audioSource.PlayOneShot(audioClipPickUp);
+                
+                bulletText.gameObject.SetActive(true);
             }
-            hit.collider.gameObject.SetActive(false);
+            if(hit.collider.gameObject.CompareTag("ItemBullet"))
+            {
+                hit.collider.gameObject.SetActive(false);
+                audioSource.PlayOneShot(audioClipItemGet);
+
+                savebulletCount += 30;
+                
+                if(savebulletCount >= 120)
+                {
+                    savebulletCount = 120;
+                }
+                bulletText.text = $"{firebulletCount}/{savebulletCount}";
+                bulletText.gameObject.SetActive(true);
+            }
             Debug.Log("Item : " + hit.collider.name);
             
         }
@@ -352,6 +388,17 @@ public class PlayerManager : MonoBehaviour
     {
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         aimTarget.position = ray.GetPoint(10.0f);
+    }
+
+    void ActionFlashLight()
+    {
+        if(Input.GetKeyDown(KeyCode.T))
+        {
+            audioSource.PlayOneShot(audioClipFlashLightOn);
+            isFlashLightOn = !isFlashLightOn;
+            flashLightObj.SetActive(isFlashLightOn);
+        }
+        
     }
 
     void Dead()
@@ -388,6 +435,8 @@ public class PlayerManager : MonoBehaviour
         Throw();
         Dead();
 
+        ActionFlashLight();
+        
 
         //애니메이션의 speed 조절
         animator.speed = animationSpeed;
@@ -542,6 +591,13 @@ public class PlayerManager : MonoBehaviour
             characterController.enabled = true;
             //충돌한 대상의 태그를 바꾸는 코드(사용예 : 아군-> 적군 바뀜, 갑옷 -> 깨지면 데미지, 주의점 : tag에 대한 설계 주의(예외처리 잘해야함))
             other.gameObject.tag = "Zombie";
+        }
+        if(other.gameObject.CompareTag("Attack"))
+        {
+            playerHp -= 30;
+            animator.SetTrigger("Damage");
+            audioSource.PlayOneShot(audioClipDamage);
+            Debug.Log($"Player : 공격받음/ Hp : {playerHp}");
         }
         
     }

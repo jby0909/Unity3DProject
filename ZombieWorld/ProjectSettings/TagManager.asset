@@ -10,6 +10,8 @@ TagManager:
   - Zombie
   - FxTemporaire
   - Weapon
+  - ItemBullet
+  - Attack
   layers:
   - Default
   - TransparentFX

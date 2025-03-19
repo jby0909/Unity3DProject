@@ -2,17 +2,11 @@ using System.Collections;
 using Unity.VisualScripting;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class ZombieManager : MonoBehaviour
 {
-    //이건 과제용으로 만든 변수. 나중에 삭제할 예정 PlayerManager수정 필요
-    private int hp;
-    public int Hp
-    {
-        get { return hp; }
-        set { hp = value; }
-    }
-
+   
     public EZombieState currentState = EZombieState.Idle; //현재상태
     public Transform target;
     public float attackRange = 1.0f; //공격 범위
@@ -21,7 +15,7 @@ public class ZombieManager : MonoBehaviour
     public Transform[] patrolPoints; //순찰 경로 지점들
     private int currentPoint = 0; //현재 순찰 경로 지점 인덱스
     public float moveSpeed = 2.0f;
-    private float trackingRange = 3.0f; //추적 범위 설정
+    private float trackingRange = 5.0f; //추적 범위 설정
     private bool isAttack = false; // 공격 상태
     private float evadeRange = 5.0f; // 도망 상태 회피 거리
     private float zombieHp = 100.0f;
@@ -35,12 +29,14 @@ public class ZombieManager : MonoBehaviour
     public AudioClip audioClipScream;
     public float animationSpeed = 1.0f;
 
+    private NavMeshAgent agent;
+
     private void Awake()
     {
         animator = GetComponent<Animator>();
         audioSource = GetComponent<AudioSource>();
-        //임시지정
-        hp = 10;
+        agent = GetComponent<NavMeshAgent>();
+       
     }
 
     void Start()
@@ -105,6 +101,7 @@ public class ZombieManager : MonoBehaviour
         Debug.Log(gameObject.name + " : 대기중");
         animator.SetBool("isWalk", false);
         animator.SetBool("isRun", false);
+        agent.isStopped = true;
 
 
 
@@ -142,12 +139,15 @@ public class ZombieManager : MonoBehaviour
                 //현재위치로부터 타겟위치까지의 방향 지정
                 Vector3 direction = (targetPoint.position - transform.position).normalized;
                 //위치 이동
-                transform.position += direction * moveSpeed * Time.deltaTime;
+                //transform.position += direction * moveSpeed * Time.deltaTime;
                 //바라보는 방향 변경
-                transform.LookAt(targetPoint.transform);
+                //transform.LookAt(targetPoint.transform);
+                agent.speed = moveSpeed;
+                agent.isStopped = false;    //멈출지 여부
+                agent.destination = targetPoint.position; //목적지
 
-                //현재위치와 타겟위치까지 거리가 0.3보다 작으면
-                if (Vector3.Distance(transform.position, targetPoint.position) < 0.3f)
+                //현재위치와 타겟위치까지 거리가 1.2보다 작으면
+                if (Vector3.Distance(transform.position, targetPoint.position) < 1.2f)
                 {
                     //순찰지점배열의 인덱스를 하나 늘림
                     currentPoint = (currentPoint + 1) % patrolPoints.Length;
@@ -181,10 +181,15 @@ public class ZombieManager : MonoBehaviour
         {
             //현재위치와 타겟위치의 거리
             float distance = Vector3.Distance(transform.position, target.position);
+            //플레이어 이동
             //현재위치 -> 타겟위치 방향
             Vector3 direction = (target.position - transform.position).normalized;
-            transform.position += direction * moveSpeed * Time.deltaTime;
-            transform.LookAt(target.transform);
+            agent.speed = moveSpeed;
+            agent.destination = target.position; //목적지
+            agent.isStopped = false;    //멈출지 여부
+            //transform.position += direction * moveSpeed * Time.deltaTime;
+            //transform.LookAt(target.transform);
+
             animator.SetBool("isRun", true);
             animator.SetBool("isWalk", false);
             
@@ -208,7 +213,14 @@ public class ZombieManager : MonoBehaviour
     private IEnumerator Attack()
     {
         Debug.Log(gameObject.name + " : 플레이어 공격");
-        transform.LookAt(target.position);
+        //바라보기
+        //transform.LookAt(target.position);
+        agent.destination = target.position; //목적지
+        agent.speed = moveSpeed;
+        agent.isStopped = true;    //멈출지 여부
+
+
+
         animator.SetTrigger("Attack");
         audioSource.PlayOneShot(audioClipScream);
 
@@ -219,7 +231,6 @@ public class ZombieManager : MonoBehaviour
         if (distance > attackRange)
         {
             //추적모드로 전환
-            Debug.Log("공격->추적 바뀜");
             ChangeState(EZombieState.Chase);
         }
         else
@@ -242,18 +253,29 @@ public class ZombieManager : MonoBehaviour
 
         //반대방향으로 쳐다보기(회전)
         Quaternion targetRotation = Quaternion.LookRotation(evadeDirection);
-        transform.rotation = targetRotation;
+        //transform.rotation = targetRotation;
+        
+        agent.destination = transform.position + evadeDirection * 10f ; //목적지
+        agent.speed = moveSpeed;
+        agent.isStopped = false;
 
         while (currentState == EZombieState.Evade && timer < evadeTime)
         {
-            transform.position += evadeDirection * moveSpeed * Time.deltaTime;
+            //transform.position += evadeDirection * moveSpeed * Time.deltaTime;
+
+            if(Vector3.Distance(agent.destination, transform.position) < 1.2f)
+            {
+                ChangeState(EZombieState.Idle);
+                //코루틴 즉시 종료
+                yield break;
+            }
+
             timer += Time.deltaTime;
             //
             yield return null;
         }
-
-        //도망이 끝나면 대기하거나 순찰하거나 선택해서 코드 수정
         ChangeState(EZombieState.Idle);
+        //도망이 끝나면 대기하거나 순찰하거나 선택해서 코드 수정
     }
 
     public void TakeDamage(float damage)
@@ -268,11 +290,13 @@ public class ZombieManager : MonoBehaviour
         if (zombieHp <= 0)
         {
             ChangeState(EZombieState.Die);
+            //더이상 총을 맞지 않게 콜라이더를 끔
+            GetComponent<CapsuleCollider>().enabled = false;
         }
         else
         {
             //데미지를 받았을 때 할 부분
-            ChangeState(EZombieState.Chase);
+            ChangeState(EZombieState.Evade);
         }
 
     }
