@@ -12751,12 +12751,13 @@ MonoBehaviour:
   weaponIconObj: {fileID: 1416746091}
   WeaponEffect: {fileID: 933264361}
   DamageParticleSystem: {fileID: 19800002, guid: 00fedc70b62a31e448e8ccc298257b56, type: 3}
-  audioClipDamage: {fileID: 8300000, guid: a6dfb252ba9b59546b6c21a265328fef, type: 3}
+  audioClipZombieDamage: {fileID: 8300000, guid: 56857f11c68cec740b9218d81e17b432, type: 3}
   bulletText: {fileID: 335900106}
   audioClipItemGet: {fileID: 8300000, guid: 9f7ddf17f3537aa408efa17086c90e2b, type: 3}
   audioClipEmptyBullet: {fileID: 8300000, guid: dbf47863a2a50ba41ae1bce6b0facf16, type: 3}
   flashLightObj: {fileID: 1005678718}
   audioClipFlashLightOn: {fileID: 8300000, guid: 820031a7849493b44adad6d6ea082962, type: 3}
+  audioClipDamage: {fileID: 8300000, guid: a6dfb252ba9b59546b6c21a265328fef, type: 3}
 --- !u!4 &1093429199
 Transform:
   m_ObjectHideFlags: 0
@@ -18083,7 +18084,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 30, y: 30}
+  m_SizeDelta: {x: 50, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1496020706
 MonoBehaviour:
@@ -18105,7 +18106,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 66eb333ac33e46940a9a15600e356285, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 2e5eb52aa41e1194db22b6ad74a54a01, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1

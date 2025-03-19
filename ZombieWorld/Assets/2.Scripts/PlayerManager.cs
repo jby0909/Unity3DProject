@@ -85,8 +85,8 @@ public class PlayerManager : MonoBehaviour
     private float rifleFireDelay = 0.5f;
 
 
-    public ParticleSystem DamageParticleSystem; //데미지 효과 파티클
-    public AudioClip audioClipDamage; //데미지 받았을때 효과음
+    public ParticleSystem DamageParticleSystem; //(좀비)데미지 효과 파티클
+    public AudioClip audioClipZombieDamage; //(좀비)데미지 받았을때 효과음
 
 
     public Text bulletText; //총알 갯수 ui
@@ -103,6 +103,7 @@ public class PlayerManager : MonoBehaviour
 
     private int playerHp = 100;
 
+    public AudioClip audioClipDamage; // (플레이어)데미지 받았을 때 효과음
     
 
 
@@ -280,7 +281,7 @@ public class PlayerManager : MonoBehaviour
                         ParticleSystem particle = Instantiate(DamageParticleSystem, hits[i].point, Quaternion.identity);
                         particle.Play();
                         
-                        audioSource.PlayOneShot(audioClipDamage); //데미지 받은 소리 재생
+                        audioSource.PlayOneShot(audioClipZombieDamage); //데미지 받은 소리 재생
 
                         //일단 데미지를 10 넣기
                         hits[i].collider.GetComponent<ZombieManager>().TakeDamage(10.0f);
