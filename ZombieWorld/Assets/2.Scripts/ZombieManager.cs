@@ -1,4 +1,5 @@
 using System.Collections;
+using Unity.AI.Navigation;
 using Unity.VisualScripting;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
@@ -8,7 +9,6 @@ public class ZombieManager : MonoBehaviour
 {
    
     public EZombieState currentState = EZombieState.Idle; //현재상태
-    public Transform target;
     public float attackRange = 1.0f; //공격 범위
     public float attackDelay = 2.0f; //공격 딜레이
     private float nextAttackTime = 0.0f; //다음 공격 시간관리
@@ -31,19 +31,33 @@ public class ZombieManager : MonoBehaviour
 
     private NavMeshAgent agent;
 
+    private bool isJumping = false;
+    private Rigidbody rb;
+    public float jumpHeight = 2.0f;
+    public float jumpDuration = 1.0f;
+    private NavMeshLink[] navMeshLinks;
+
     private void Awake()
     {
         animator = GetComponent<Animator>();
         audioSource = GetComponent<AudioSource>();
         agent = GetComponent<NavMeshAgent>();
+        rb = GetComponent<Rigidbody>();
+        if(rb == null)
+        {
+            rb = gameObject.AddComponent<Rigidbody>();
+        }
+        rb.isKinematic = true;
+
+        navMeshLinks = FindObjectsOfType<NavMeshLink>();
        
     }
 
     void Start()
     {
         //상태 초기화
-        distanceTotarget = Vector3.Distance(transform.position, target.position);
-        currentState = EZombieState.Idle;
+        distanceTotarget = Vector3.Distance(transform.position, PlayerManager.Instance.transform.position);
+        //currentState = EZombieState.Idle;
         if (currentState == EZombieState.Idle)
         {
             stateCoroutine = StartCoroutine(Idle());
@@ -59,7 +73,8 @@ public class ZombieManager : MonoBehaviour
 
     void Update()
     {
-        distanceTotarget = Vector3.Distance(transform.position, target.position);
+        
+        distanceTotarget = Vector3.Distance(transform.position, PlayerManager.Instance.transform.position);
         animator.speed = animationSpeed;
 
 
@@ -67,6 +82,9 @@ public class ZombieManager : MonoBehaviour
 
     public void ChangeState(EZombieState newState)
     {
+        //점프했을 때 다른것을 하지 못하게 막는 코드
+        if (isJumping) return;
+
         if (stateCoroutine != null)
         {
             StopCoroutine(stateCoroutine);
@@ -107,7 +125,7 @@ public class ZombieManager : MonoBehaviour
 
         while (currentState == EZombieState.Idle)
         {
-            float distance = Vector3.Distance(transform.position, target.position);
+            float distance = Vector3.Distance(transform.position, PlayerManager.Instance.transform.position);
 
             if (distance < trackingRange)
             {
@@ -146,6 +164,13 @@ public class ZombieManager : MonoBehaviour
                 agent.isStopped = false;    //멈출지 여부
                 agent.destination = targetPoint.position; //목적지
 
+                //nav mesh link에 가까워지면?
+                if(agent.isOnOffMeshLink)
+                {
+                    //뭔가 행동할 것 추가
+                    StartCoroutine(JumpAcrossLink());
+                }
+
                 //현재위치와 타겟위치까지 거리가 1.2보다 작으면
                 if (Vector3.Distance(transform.position, targetPoint.position) < 1.2f)
                 {
@@ -155,7 +180,7 @@ public class ZombieManager : MonoBehaviour
                 }
 
 
-                float distance = Vector3.Distance(transform.position, target.position);
+                float distance = Vector3.Distance(transform.position, PlayerManager.Instance.transform.position);
                 if (distance < trackingRange)
                 {
                     if (distance < attackRange)
@@ -176,23 +201,24 @@ public class ZombieManager : MonoBehaviour
     private IEnumerator Chase()
     {
         Debug.Log(gameObject.name + " : 플레이어 추적중");
+        SoundManager.Instance.PlaySfx("DefaultZombie", transform.position);
 
         while (currentState == EZombieState.Chase)
         {
             //현재위치와 타겟위치의 거리
-            float distance = Vector3.Distance(transform.position, target.position);
+            float distance = Vector3.Distance(transform.position, PlayerManager.Instance.transform.position);
             //플레이어 이동
             //현재위치 -> 타겟위치 방향
-            Vector3 direction = (target.position - transform.position).normalized;
+            Vector3 direction = (PlayerManager.Instance.transform.position - transform.position).normalized;
             agent.speed = moveSpeed;
-            agent.destination = target.position; //목적지
+            agent.destination = PlayerManager.Instance.transform.position; //목적지
             agent.isStopped = false;    //멈출지 여부
             //transform.position += direction * moveSpeed * Time.deltaTime;
             //transform.LookAt(target.transform);
 
             animator.SetBool("isRun", true);
             animator.SetBool("isWalk", false);
-            
+
 
             //이부분이 왜 이렇게 고쳤을 때 되는지 생각해보기(아직 이해가 잘 안됨. 왜 되지??)
             if (distance < attackRange)
@@ -201,7 +227,7 @@ public class ZombieManager : MonoBehaviour
             }
             else if (distance > trackingRange)
             {
-                ChangeState(EZombieState.Idle);
+                ChangeState(EZombieState.Patrol);
             }
 
 
@@ -215,18 +241,21 @@ public class ZombieManager : MonoBehaviour
         Debug.Log(gameObject.name + " : 플레이어 공격");
         //바라보기
         //transform.LookAt(target.position);
-        agent.destination = target.position; //목적지
-        agent.speed = moveSpeed;
-        agent.isStopped = true;    //멈출지 여부
+        //while(/*바라보고 있지 않을 때*/)
+        //{
+        //    agent.destination = target.position; //목적지
+        //    agent.speed = moveSpeed;
+        //    agent.isStopped = false;    
+        //}
 
-
-
+        agent.isStopped = true; // 바라보고 나서는 멈춤
         animator.SetTrigger("Attack");
-        audioSource.PlayOneShot(audioClipScream);
+        //audioSource.PlayOneShot(audioClipScream);
+        SoundManager.Instance.PlaySfx("ScreamZombie", transform.position);
 
         yield return new WaitForSeconds(attackDelay);
 
-        float distance = Vector3.Distance(transform.position, target.position);
+        float distance = Vector3.Distance(transform.position, PlayerManager.Instance.transform.position);
         //공격범위 벗어나면
         if (distance > attackRange)
         {
@@ -247,7 +276,7 @@ public class ZombieManager : MonoBehaviour
         animator.SetBool("isRun", false);
 
         //타겟위치 -> 현재위치 방향(타겟과 반대방향으로 도망감)
-        Vector3 evadeDirection = (transform.position - target.position).normalized;
+        Vector3 evadeDirection = (transform.position - PlayerManager.Instance.transform.position).normalized;
         float evadeTime = 3.0f;
         float timer = 0.0f;
 
@@ -296,7 +325,7 @@ public class ZombieManager : MonoBehaviour
         else
         {
             //데미지를 받았을 때 할 부분
-            ChangeState(EZombieState.Evade);
+            ChangeState(EZombieState.Chase);
         }
 
     }
@@ -309,6 +338,40 @@ public class ZombieManager : MonoBehaviour
         yield return new WaitForSeconds(2.0f);
         //죽음 상태에 대해서 커스텀할 부분
         gameObject.SetActive(false);
+    }
+
+    private IEnumerator JumpAcrossLink()
+    {
+        Debug.Log(gameObject.name + " 좀비 점프");
+
+        isJumping = true;
+
+        agent.isStopped = true;
+
+        //NavMeshLink의 시작과 끝 좌표 가져오기
+        OffMeshLinkData linkData = agent.currentOffMeshLinkData;
+        Vector3 startPos = linkData.startPos;
+        Vector3 endPos = linkData.endPos;
+
+        //점프 경로 계산(포물선을 그리며 점프)
+        float elapsedTime = 0;
+        while(elapsedTime < jumpDuration)
+        {
+            float t = elapsedTime / jumpDuration;
+            Vector3 currentPosition = Vector3.Lerp(startPos, endPos, t);
+            currentPosition.y += Mathf.Sin(t * Mathf.PI) * jumpHeight; //포물선 경로
+            transform.position = currentPosition;
+
+            elapsedTime += Time.deltaTime;
+            yield return null;
+        }
+
+        //도착점에 위치(약간 어긋날 수 도 있기 때문에, 공중에서 도착지점을 찾는것을 멈췄기 때문에, 오차가 생김) -> 도착점을 정확하게 넣어준 뒤 다음 동작을 하도록 만들어야 함
+        transform.position = endPos;
+        //NavMeshAgent 경로 재개
+        agent.CompleteOffMeshLink(); //우리가 지정한 포물선 경로는 기존의 경로를 우리가 임의로 이동시킨 것이기 때문에 원래의 경로를 다시 가도록 설정해주는 것?
+        agent.isStopped = false;
+        isJumping = false;
     }
 }
 

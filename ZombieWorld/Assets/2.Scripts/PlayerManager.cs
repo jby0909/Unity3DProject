@@ -7,6 +7,10 @@ using UnityEngine.UI;
 
 public class PlayerManager : MonoBehaviour
 {
+    public static PlayerManager Instance { get; private set; } //읽기 허용 쓰기 비허용(싱글톤)
+
+
+
     private float moveSpeed = 5.0f; //플레이어 이동 속도
     public float mouseSensitivity = 100.0f; // 마우스 감도
     public Transform cameraTransform; // 카메라의 Transform
@@ -104,13 +108,33 @@ public class PlayerManager : MonoBehaviour
     private int playerHp = 100;
 
     public AudioClip audioClipDamage; // (플레이어)데미지 받았을 때 효과음
-    
 
 
+    public GameObject PauseObj;
+    private bool isPause = false;
+
+    private bool isMouseSet = true;
+
+    private void Awake()
+    {
+        //싱글톤
+        if(Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            if(Instance != this)
+            {
+                Destroy(gameObject);
+            }
+            
+        }
+    }
 
     void Start()
     {
-        Cursor.lockState = CursorLockMode.Locked;
+        //Cursor.lockState = CursorLockMode.Locked;
         currentDistance = thirdPersonDistance;
         targetDistance = thirdPersonDistance;
         targetFov = defaultFov;
@@ -128,22 +152,26 @@ public class PlayerManager : MonoBehaviour
 
     void MouseSet()
     {
-        //마우스 입력을 받아 카메라가 플레이어 회전 처리
-        float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
-        float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity * Time.deltaTime;
-
-        yaw += mouseX;
-        pitch -= mouseY;
-        //각도 제한(3인칭게임에서 보통 -45 ~ 45 도 정도 쓴다) 
-        pitch = Mathf.Clamp(pitch, -45f, 45f);
-
-        isGround = characterController.isGrounded;
-
-
-        if (isGround && velocity.y < 0)
+        if(isMouseSet)
         {
-            velocity.y = -2f;
+            //마우스 입력을 받아 카메라가 플레이어 회전 처리
+            float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
+            float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity * Time.deltaTime;
+
+            yaw += mouseX;
+            pitch -= mouseY;
+            //각도 제한(3인칭게임에서 보통 -45 ~ 45 도 정도 쓴다) 
+            pitch = Mathf.Clamp(pitch, -45f, 45f);
+
+            isGround = characterController.isGrounded;
+
+
+            if (isGround && velocity.y < 0)
+            {
+                velocity.y = -2f;
+            }
         }
+        
     }
 
     
@@ -253,7 +281,8 @@ public class PlayerManager : MonoBehaviour
                 else
                 {
                     //총알이 없는 소리 재생
-                    audioSource.PlayOneShot(audioClipEmptyBullet);
+                    //audioSource.PlayOneShot(audioClipEmptyBullet);
+                    SoundManager.Instance.PlaySfx("EmptyBullet", transform.position);
                     return;
                 }
                 
@@ -281,7 +310,8 @@ public class PlayerManager : MonoBehaviour
                         ParticleSystem particle = Instantiate(DamageParticleSystem, hits[i].point, Quaternion.identity);
                         particle.Play();
                         
-                        audioSource.PlayOneShot(audioClipZombieDamage); //데미지 받은 소리 재생
+                        //audioSource.PlayOneShot(audioClipZombieDamage); //데미지 받은 소리 재생
+                        SoundManager.Instance.PlaySfx("DamageZombie", hits[i].transform.position);
 
                         //일단 데미지를 10 넣기
                         hits[i].collider.GetComponent<ZombieManager>().TakeDamage(10.0f);
@@ -362,14 +392,16 @@ public class PlayerManager : MonoBehaviour
                 hit.collider.gameObject.SetActive(false);
                 isGetWeapon = true;
                 weaponIconObj.SetActive(true);
-                audioSource.PlayOneShot(audioClipPickUp);
+                //audioSource.PlayOneShot(audioClipPickUp);
+                SoundManager.Instance.PlaySfx("PickUpItem", hit.transform.position);
                 
                 bulletText.gameObject.SetActive(true);
             }
             if(hit.collider.gameObject.CompareTag("ItemBullet"))
             {
                 hit.collider.gameObject.SetActive(false);
-                audioSource.PlayOneShot(audioClipItemGet);
+                //audioSource.PlayOneShot(audioClipItemGet);
+                SoundManager.Instance.PlaySfx("PickUpItem", hit.transform.position);
 
                 savebulletCount += 30;
                 
@@ -395,7 +427,8 @@ public class PlayerManager : MonoBehaviour
     {
         if(Input.GetKeyDown(KeyCode.T))
         {
-            audioSource.PlayOneShot(audioClipFlashLightOn);
+            //audioSource.PlayOneShot(audioClipFlashLightOn);
+            SoundManager.Instance.PlaySfx("FlashlightClick", transform.position);
             isFlashLightOn = !isFlashLightOn;
             flashLightObj.SetActive(isFlashLightOn);
         }
@@ -437,6 +470,20 @@ public class PlayerManager : MonoBehaviour
         Dead();
 
         ActionFlashLight();
+
+        if(Input.GetKeyDown(KeyCode.Escape))
+        {
+            isPause = !isPause;
+            if(isPause)
+            {
+                
+                Pause();
+            }
+            else
+            {
+                ReGame();
+            }
+        }
         
 
         //애니메이션의 speed 조절
@@ -455,7 +502,37 @@ public class PlayerManager : MonoBehaviour
         }
     }
 
-    
+
+    public void ReGame()
+    {
+        //audioSource.PlayOneShot(audioClipItemGet);
+        SoundManager.Instance.PlaySfx("UIClick");
+        PauseObj.SetActive(false);
+        Time.timeScale = 1; //게임 시간 재개
+        isMouseSet = true;
+    }
+
+    void Pause()
+    {
+        //audioSource.PlayOneShot(audioClipItemGet);
+        SoundManager.Instance.PlaySfx("UIClick");
+        PauseObj.SetActive(true);
+        Time.timeScale = 0; //게임 시간 정지
+        //플레이어의 마우스 입력 막기
+        isMouseSet = false;
+        
+    }
+
+    public void Exit()
+    {
+        //audioSource.PlayOneShot(audioClipItemGet);
+        SoundManager.Instance.PlaySfx("UIClick");
+        PauseObj.SetActive(false);
+        Time.timeScale = 1;
+        Application.Quit();
+        isMouseSet = true;
+    }
+
 
     //여기 주석은 내 개인 해석
     void FirstPersonMovement()
@@ -551,7 +628,8 @@ public class PlayerManager : MonoBehaviour
 
     public void WeaponChangeSoundOn()
     {
-        audioSource.PlayOneShot(audioClipWeaponChange);
+        //audioSource.PlayOneShot(audioClipWeaponChange);
+        SoundManager.Instance.PlaySfx("ChangeWeapon", transform.position);
         //예외처리
         //소리를 내라 -> 클립이 없는 경우
         //다른 변수 등을 부를 때 해당 하는게 없을 경우
@@ -560,7 +638,8 @@ public class PlayerManager : MonoBehaviour
     public void FireSoundOn()
     {
         //총 쏘는 소리
-        audioSource.PlayOneShot(audioClipFire);
+        //audioSource.PlayOneShot(audioClipFire);
+        SoundManager.Instance.PlaySfx("Fire", transform.position);
         //이펙트 재생
         WeaponEffect.Play();
     }
@@ -582,9 +661,10 @@ public class PlayerManager : MonoBehaviour
         if(other.gameObject.CompareTag("PlayerDamage"))
         {
             //소리재생
-            audioSource.PlayOneShot(audioClipFire);
+            //audioSource.PlayOneShot(audioClipFire);
+            SoundManager.Instance.PlaySfx("Fire", transform.position);
             //애니메이션재생
-            
+
             animator.SetTrigger("Damage");
             //처음위치로 이동
             characterController.enabled = false;
@@ -593,13 +673,21 @@ public class PlayerManager : MonoBehaviour
             //충돌한 대상의 태그를 바꾸는 코드(사용예 : 아군-> 적군 바뀜, 갑옷 -> 깨지면 데미지, 주의점 : tag에 대한 설계 주의(예외처리 잘해야함))
             other.gameObject.tag = "Zombie";
         }
-        if(other.gameObject.CompareTag("Attack"))
+        else if(other.gameObject.CompareTag("Attack"))
         {
             playerHp -= 30;
             animator.SetTrigger("Damage");
-            audioSource.PlayOneShot(audioClipDamage);
+            //audioSource.PlayOneShot(audioClipDamage);
+            SoundManager.Instance.PlaySfx("GetDamage", transform.position);
             Debug.Log($"Player : 공격받음/ Hp : {playerHp}");
         }
+        /*
+        else if(other.gameObject.CompareTag("Item"))
+        {
+            other.gameObject.transform.SetParent(손.transform); // 아이템 손에 넣는 것
+            other.gameObject.transform.SetParent(null); // 아이템 손에서 빼는 것(부모에서 나와서 월드로 감)
+        }
+        */
         
     }
 
