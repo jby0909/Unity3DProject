@@ -5,6 +5,15 @@ using UnityEngine;
 using UnityEngine.Animations.Rigging; // NameSpace : 소속
 using UnityEngine.UI;
 
+//무기 여러가지 사용 예시
+public enum WeaponMode
+{
+    Pistol,
+    Shotgun,
+    Rifle,
+}
+
+
 public class PlayerManager : MonoBehaviour
 {
     public static PlayerManager Instance { get; private set; } //읽기 허용 쓰기 비허용(싱글톤)
@@ -115,6 +124,18 @@ public class PlayerManager : MonoBehaviour
 
     private bool isMouseSet = true;
 
+    //무기별 타격감을 조절하는 변수들?
+    private WeaponMode currentWeaponMode = WeaponMode.Rifle;
+    private int shotgunRayCount = 5;
+    private float shotGunSpreadAngle = 10.0f;
+    private float recoilStrength = 2.0f;
+    private float maxRecoilAngle = 10.0f;
+    private float currentRecoil = 0.0f;
+    private float shakeDuration = 0.1f; //카메라 shake 시간
+    private float shakeMagnitude = 1.0f; //카메라라 shake 크기?
+    private Vector3 originalCameraPosition; //카메라 shake하므로 기존의 카메라 위치
+    private Coroutine cameraShakeCoroutine; //카메라 shake 코루틴
+
     private void Awake()
     {
         //싱글톤
@@ -134,7 +155,7 @@ public class PlayerManager : MonoBehaviour
 
     void Start()
     {
-        //Cursor.lockState = CursorLockMode.Locked;
+        Cursor.lockState = CursorLockMode.Locked;
         currentDistance = thirdPersonDistance;
         targetDistance = thirdPersonDistance;
         targetFov = defaultFov;
@@ -272,7 +293,25 @@ public class PlayerManager : MonoBehaviour
             //조준상태이고, 총을 쏘고있는 중이 아닌 때 사격
             if (isAim && !isFire)
             {
-                if(firebulletCount > 0)
+                /*
+                if(currentWeaponMode == WeaponMode.Pistol)
+                {
+
+                }
+                else if(currentWeaponMode == WeaponMode.Shotgun)
+                {
+                    if (firebulletCount > 0)
+                    {
+                        firebulletCount--;
+                        bulletText.text = $"{firebulletCount}/{savebulletCount}";
+                        bulletText.gameObject.SetActive(true);
+                    }
+
+                    FireShotgun();
+                }
+                */
+
+                if (firebulletCount > 0)
                 {
                     firebulletCount--;
                     bulletText.text = $"{firebulletCount}/{savebulletCount}";
@@ -296,6 +335,9 @@ public class PlayerManager : MonoBehaviour
                 StartCoroutine(FireWithDelay(rifleFireDelay));
                 animator.SetTrigger("Fire");
 
+                //ApplyRecoil();
+                //StartCameraShake();
+
                 Ray ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward); //new Ray(시작위치(메인카메라의 위치), 방향(메인카메라의 앞쪽방향))
                 RaycastHit[] hits = Physics.RaycastAll(ray, weaponMaxDistance, TargetLayerMask);
 
@@ -307,8 +349,9 @@ public class PlayerManager : MonoBehaviour
                         Debug.Log("충돌 : " + hits[i].collider.name);
 
                         //파티클을 raycast가 충돌한 위치에 생성
-                        ParticleSystem particle = Instantiate(DamageParticleSystem, hits[i].point, Quaternion.identity);
-                        particle.Play();
+                        //ParticleSystem particle = Instantiate(DamageParticleSystem, hits[i].point, Quaternion.identity);
+                        //particle.Play();
+                        ParticleManager.Instance.ParticlePlay(ParticleType.DamageExplosion, hits[i].point, Vector3.one);
                         
                         //audioSource.PlayOneShot(audioClipZombieDamage); //데미지 받은 소리 재생
                         SoundManager.Instance.PlaySfx("DamageZombie", hits[i].transform.position);
@@ -397,7 +440,7 @@ public class PlayerManager : MonoBehaviour
                 
                 bulletText.gameObject.SetActive(true);
             }
-            if(hit.collider.gameObject.CompareTag("ItemBullet"))
+            else if(hit.collider.gameObject.CompareTag("ItemBullet"))
             {
                 hit.collider.gameObject.SetActive(false);
                 //audioSource.PlayOneShot(audioClipItemGet);
@@ -411,6 +454,21 @@ public class PlayerManager : MonoBehaviour
                 }
                 bulletText.text = $"{firebulletCount}/{savebulletCount}";
                 bulletText.gameObject.SetActive(true);
+            }
+            else if (hit.collider.name == "Door")
+            {
+                Debug.Log("문 열려라 참깨!");
+                if(hit.collider.GetComponent<Door>().isOpen)
+                {
+                    Debug.Log("뒤에서 열린다구!");
+                    hit.collider.GetComponent<Animator>().SetTrigger("OpenBackward");
+                }
+                else
+                {
+                    Debug.Log("앞에서 열린다구!");
+                    hit.collider.GetComponent<Animator>().SetTrigger("OpenForward");
+                }
+                
             }
             Debug.Log("Item : " + hit.collider.name);
             
@@ -500,7 +558,84 @@ public class PlayerManager : MonoBehaviour
             //애니메이션을 실행
             animator.Play(currentAnimation);
         }
+
+        //카메라 반동 예시
+        if(currentRecoil > 0)
+        {
+            currentRecoil -= recoilStrength * Time.deltaTime; //반동을 서서히 감소시킴
+            currentRecoil = Mathf.Clamp(currentRecoil, 0, maxRecoilAngle);
+            Quaternion currentRotation = Camera.main.transform.rotation;
+            Quaternion recoilRotation = Quaternion.Euler(-currentRecoil, 0, 0);
+
+            //카메라가 반동에 따라 점점 위를 보는??
+            //이부분을 실행하려면 카메라를 제어하는 코드를 꺼야 함(우리가 기존에 타겟을 보고 있으라는 코드를 넣었기 때문에)
+            Camera.main.transform.rotation = currentRotation * recoilRotation; 
+        }
     }
+
+    //샷건 예시
+    void FireShotgun()
+    {
+        for(int i = 0; i < shotgunRayCount; i++)
+        {
+            RaycastHit hit;
+
+            Vector3 origin = Camera.main.transform.position;
+            Vector3 spreadDirection = GetSpreadDirection(Camera.main.transform.forward, shotGunSpreadAngle);
+            Debug.DrawRay(origin, spreadDirection * castDistance, Color.green, 2.0f);
+            if(Physics.Raycast(origin, spreadDirection, out hit, castDistance, TargetLayerMask))
+            {
+                Debug.Log("Shotgun Hit : " + hit.collider.name);
+            }
+        }
+    }
+
+    Vector3 GetSpreadDirection(Vector3 forwardDirection, float spreadAngle)
+    {
+        float spreadX = UnityEngine.Random.Range(-spreadAngle, spreadAngle);
+        float spreadY = UnityEngine.Random.Range(-spreadAngle, spreadAngle);
+        Vector3 spreadDirection = Quaternion.Euler(spreadX, spreadY, 0) * forwardDirection;
+        return spreadDirection;
+
+    }
+
+    void ApplyRecoil()
+    {
+        Quaternion currentRotation = Camera.main.transform.rotation; // 현재 카메라 월드 회전값 가져오기
+        Quaternion recoilRotation = Quaternion.Euler(-currentRecoil, 0, 0); // 반동을 계산해서 X축 상하 회전에 추가
+        Camera.main.transform.rotation = currentRotation * recoilRotation; // 현재 회전 값에 반동을 곱하여 새로운 회전값?????뒤에 안보여요
+        currentRecoil += recoilStrength; // 반동 값을 증가
+        currentRecoil = Mathf.Clamp(currentRecoil, 0, maxRecoilAngle); // 반동값을 제한
+    }
+
+    void StartCameraShake()
+    {
+        if(cameraShakeCoroutine != null)
+        {
+            StopCoroutine(cameraShakeCoroutine);
+        }
+        cameraShakeCoroutine = StartCoroutine(CameraShake(shakeDuration, shakeMagnitude));
+    }
+
+    IEnumerator CameraShake(float duration, float magnitude)
+    {
+        float elapsed = 0.0f;
+        Vector3 originalPosition = Camera.main.transform.position;
+        while(elapsed < duration)
+        {
+            float offsetX = UnityEngine.Random.Range(-1.0f, 1.0f) * magnitude;
+            float offsetY = UnityEngine.Random.Range(-1.0f, 1.0f) * magnitude;
+
+            Camera.main.transform.position = originalPosition + new Vector3(offsetX, offsetY, 0);
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+        Camera.main.transform.position = originalPosition;
+        
+    }
+
+
 
 
     public void ReGame()
@@ -518,6 +653,9 @@ public class PlayerManager : MonoBehaviour
         SoundManager.Instance.PlaySfx("UIClick");
         PauseObj.SetActive(true);
         Time.timeScale = 0; //게임 시간 정지
+
+        Cursor.lockState = CursorLockMode.None; // 마우스를 자유롭게 움직일 수 있도록 설정
+        Cursor.visible = true; // 마우스 커서 보이게 설정
         //플레이어의 마우스 입력 막기
         isMouseSet = false;
         
@@ -688,10 +826,12 @@ public class PlayerManager : MonoBehaviour
             other.gameObject.transform.SetParent(null); // 아이템 손에서 빼는 것(부모에서 나와서 월드로 감)
         }
         */
-        
+       
     }
 
     
+
+
     void DebugBox(Vector3 origin, Vector3 direction)
     {
         Vector3 endPoint = origin + direction * castDistance;

@@ -27,7 +27,7 @@ public class ZombieManager : MonoBehaviour
     Animator animator;
     private AudioSource audioSource;
     public AudioClip audioClipScream;
-    public float animationSpeed = 1.0f;
+    public float animationWalkSpeed = 2.0f;
 
     private NavMeshAgent agent;
 
@@ -75,7 +75,7 @@ public class ZombieManager : MonoBehaviour
     {
         
         distanceTotarget = Vector3.Distance(transform.position, PlayerManager.Instance.transform.position);
-        animator.speed = animationSpeed;
+        animator.speed = 1.0f;
 
 
     }
@@ -117,6 +117,7 @@ public class ZombieManager : MonoBehaviour
     private IEnumerator Idle()
     {
         Debug.Log(gameObject.name + " : 대기중");
+        animator.speed = 1.0f;
         animator.SetBool("isWalk", false);
         animator.SetBool("isRun", false);
         agent.isStopped = true;
@@ -145,6 +146,7 @@ public class ZombieManager : MonoBehaviour
     private IEnumerator Patrol()
     {
         Debug.Log(gameObject.name + " : 순찰중");
+        animator.speed = animationWalkSpeed;
         while (currentState == EZombieState.Patrol)
         {
             if (patrolPoints.Length > 0)
@@ -202,6 +204,7 @@ public class ZombieManager : MonoBehaviour
     {
         Debug.Log(gameObject.name + " : 플레이어 추적중");
         SoundManager.Instance.PlaySfx("DefaultZombie", transform.position);
+        animator.speed = 1.0f;
 
         while (currentState == EZombieState.Chase)
         {
@@ -239,6 +242,7 @@ public class ZombieManager : MonoBehaviour
     private IEnumerator Attack()
     {
         Debug.Log(gameObject.name + " : 플레이어 공격");
+        animator.speed = 1.0f;
         //바라보기
         //transform.LookAt(target.position);
         //while(/*바라보고 있지 않을 때*/)
@@ -272,6 +276,7 @@ public class ZombieManager : MonoBehaviour
     private IEnumerator Evade()
     {
         Debug.Log(gameObject.name + " : 도망중");
+        animator.speed = animationWalkSpeed;
         animator.SetBool("isWalk", true);
         animator.SetBool("isRun", false);
 
@@ -312,6 +317,7 @@ public class ZombieManager : MonoBehaviour
         //무적상태, .... 추가
 
         Debug.Log(gameObject.name + " : " + damage + " 데미지 받음");
+        animator.speed = 1.0f;
         animator.SetTrigger("Damage");
         zombieHp -= damage;
 
@@ -333,6 +339,7 @@ public class ZombieManager : MonoBehaviour
     private IEnumerator Die()
     {
         Debug.Log(gameObject.name + " : 사망");
+        animator.speed = 1.0f;
         animator.SetTrigger("Die");
         //2초뒤에 사라짐
         yield return new WaitForSeconds(2.0f);

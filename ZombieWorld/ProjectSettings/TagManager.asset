@@ -12,6 +12,7 @@ TagManager:
   - Weapon
   - ItemBullet
   - Attack
+  - Door
   layers:
   - Default
   - TransparentFX

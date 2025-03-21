@@ -6,6 +6,7 @@ using UnityEngine.SceneManagement;
 
 public class SoundManager : MonoBehaviour
 {
+    //싱글톤
     public static SoundManager Instance { get; private set; }
 
     public AudioSource bgmSource;   //배경음 킬 것
@@ -30,6 +31,7 @@ public class SoundManager : MonoBehaviour
 
     private void Awake()
     {
+        //싱글톤
         if(Instance == null)
         {
             Instance = this;
@@ -118,7 +120,7 @@ public class SoundManager : MonoBehaviour
             sfxSource.PlayOneShot(DicsfxClips[name]); 
         }
     }
-    //특정 위치에서 사운드 재생시킬 때(override)
+    //특정 위치에서 사운드 재생시킬 때(overload)
     public void PlaySfx(string name, Vector3 position)
     {
         if (DicsfxClips.ContainsKey(name))
