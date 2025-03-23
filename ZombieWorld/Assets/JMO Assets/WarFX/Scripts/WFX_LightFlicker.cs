@@ -17,7 +17,7 @@ public class WFX_LightFlicker : MonoBehaviour
 	void Start ()
 	{
 		timer = time;
-		StartCoroutine("Flicker");
+		//StartCoroutine("Flicker");
 	}
 	
 	IEnumerator Flicker()

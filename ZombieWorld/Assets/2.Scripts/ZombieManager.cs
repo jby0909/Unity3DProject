@@ -75,7 +75,7 @@ public class ZombieManager : MonoBehaviour
     {
         
         distanceTotarget = Vector3.Distance(transform.position, PlayerManager.Instance.transform.position);
-        animator.speed = 1.0f;
+        //animator.speed = 1.0f;
 
 
     }
@@ -213,7 +213,7 @@ public class ZombieManager : MonoBehaviour
             //플레이어 이동
             //현재위치 -> 타겟위치 방향
             Vector3 direction = (PlayerManager.Instance.transform.position - transform.position).normalized;
-            agent.speed = moveSpeed;
+            agent.speed = moveSpeed * 2;
             agent.destination = PlayerManager.Instance.transform.position; //목적지
             agent.isStopped = false;    //멈출지 여부
             //transform.position += direction * moveSpeed * Time.deltaTime;
@@ -341,6 +341,7 @@ public class ZombieManager : MonoBehaviour
         Debug.Log(gameObject.name + " : 사망");
         animator.speed = 1.0f;
         animator.SetTrigger("Die");
+        gameObject.GetComponent<CapsuleCollider>().enabled = false;
         //2초뒤에 사라짐
         yield return new WaitForSeconds(2.0f);
         //죽음 상태에 대해서 커스텀할 부분

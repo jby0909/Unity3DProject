@@ -104,7 +104,7 @@ public class PlayerManager : MonoBehaviour
 
     public Text bulletText; //총알 갯수 ui
     private int firebulletCount = 30; //장전한 총알 갯수
-    private int savebulletCount = 120; //가지고 있는 총알 갯수
+    private int savebulletCount = 0; //가지고 있는 총알 갯수
 
     public AudioClip audioClipItemGet; //item획득시 사운드
     public AudioClip audioClipEmptyBullet; //총알 다 썼을 때 fire시도하면 나는 소리
@@ -173,26 +173,23 @@ public class PlayerManager : MonoBehaviour
 
     void MouseSet()
     {
-        if(isMouseSet)
+        //마우스 입력을 받아 카메라가 플레이어 회전 처리
+        float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
+        float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity * Time.deltaTime;
+
+        yaw += mouseX;
+        pitch -= mouseY;
+        //각도 제한(3인칭게임에서 보통 -45 ~ 45 도 정도 쓴다) 
+        pitch = Mathf.Clamp(pitch, -45f, 45f);
+
+        isGround = characterController.isGrounded;
+
+
+        if (isGround && velocity.y < 0)
         {
-            //마우스 입력을 받아 카메라가 플레이어 회전 처리
-            float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
-            float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity * Time.deltaTime;
-
-            yaw += mouseX;
-            pitch -= mouseY;
-            //각도 제한(3인칭게임에서 보통 -45 ~ 45 도 정도 쓴다) 
-            pitch = Mathf.Clamp(pitch, -45f, 45f);
-
-            isGround = characterController.isGrounded;
-
-
-            if (isGround && velocity.y < 0)
-            {
-                velocity.y = -2f;
-            }
+            velocity.y = -2f;
         }
-        
+
     }
 
     
@@ -511,23 +508,26 @@ public class PlayerManager : MonoBehaviour
 
     void Update()
     {
+        if(isMouseSet)
+        {
+            MouseSet();
+            CameraSet();
+            PlayerMovement();
+            AimSet();
+            Fire();
+            Run();
+            WeaponChange();
+            AnimationSet();
 
-        MouseSet();
-        CameraSet();
-        PlayerMovement();
-        AimSet();
-        Fire();
-        Run();
-        WeaponChange();
-        AnimationSet();
 
+            GetItemOperate();
 
-        GetItemOperate();
+            Throw();
+            Dead();
 
-        Throw();
-        Dead();
-
-        ActionFlashLight();
+            ActionFlashLight();
+        }
+        
 
         if(Input.GetKeyDown(KeyCode.Escape))
         {
@@ -645,6 +645,8 @@ public class PlayerManager : MonoBehaviour
         PauseObj.SetActive(false);
         Time.timeScale = 1; //게임 시간 재개
         isMouseSet = true;
+        isPause = !isPause;
+        Cursor.lockState = CursorLockMode.Locked;
     }
 
     void Pause()
@@ -669,6 +671,8 @@ public class PlayerManager : MonoBehaviour
         Time.timeScale = 1;
         Application.Quit();
         isMouseSet = true;
+        isPause = !isPause;
+        Cursor.lockState = CursorLockMode.Locked;
     }
 
 
