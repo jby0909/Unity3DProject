@@ -114,7 +114,7 @@ public class PlayerManager : MonoBehaviour
 
     public AudioClip audioClipFlashLightOn;
 
-    private int playerHp = 100;
+    private int playerHp = 200;
 
     public AudioClip audioClipDamage; // (플레이어)데미지 받았을 때 효과음
 
@@ -492,9 +492,10 @@ public class PlayerManager : MonoBehaviour
 
     void Dead()
     {
-        if(Input.GetKeyDown(KeyCode.Alpha2))
+        if(playerHp <= 0)
         {
             animator.SetTrigger("Dead");
+            //game over 창 띄우기
         }
     }
 

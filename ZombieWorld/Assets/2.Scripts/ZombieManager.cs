@@ -37,6 +37,8 @@ public class ZombieManager : MonoBehaviour
     public float jumpDuration = 1.0f;
     private NavMeshLink[] navMeshLinks;
 
+    private static int ZombieCount = 0; //현재 scene에 존재하는 총 좀비의 수
+
     private void Awake()
     {
         animator = GetComponent<Animator>();
@@ -55,6 +57,7 @@ public class ZombieManager : MonoBehaviour
 
     void Start()
     {
+        ZombieCount++; // 시작할 때 좀비 수 하나 늘리기
         //상태 초기화
         distanceTotarget = Vector3.Distance(transform.position, PlayerManager.Instance.transform.position);
         //currentState = EZombieState.Idle;
@@ -147,6 +150,7 @@ public class ZombieManager : MonoBehaviour
     {
         Debug.Log(gameObject.name + " : 순찰중");
         animator.speed = animationWalkSpeed;
+        currentPoint = Random.Range(0, patrolPoints.Length);
         while (currentState == EZombieState.Patrol)
         {
             if (patrolPoints.Length > 0)
@@ -177,7 +181,10 @@ public class ZombieManager : MonoBehaviour
                 if (Vector3.Distance(transform.position, targetPoint.position) < 1.2f)
                 {
                     //순찰지점배열의 인덱스를 하나 늘림
-                    currentPoint = (currentPoint + 1) % patrolPoints.Length;
+                    //currentPoint = (currentPoint + 1) % patrolPoints.Length;
+
+                    //순찰지점배열의 인덱스를 랜덤으로
+                    currentPoint = Random.Range(0, patrolPoints.Length);
 
                 }
 
@@ -338,6 +345,7 @@ public class ZombieManager : MonoBehaviour
 
     private IEnumerator Die()
     {
+        ZombieCount--; // 죽으면 좀비 수 줄이기
         Debug.Log(gameObject.name + " : 사망");
         animator.speed = 1.0f;
         animator.SetTrigger("Die");
