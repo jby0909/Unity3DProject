@@ -125,24 +125,24 @@ public class ZombieManager : MonoBehaviour
         animator.SetBool("isRun", false);
         agent.isStopped = true;
 
+        yield return null;
 
+        //while (currentState == EZombieState.Idle)
+        //{
+        //    float distance = Vector3.Distance(transform.position, PlayerManager.Instance.transform.position);
 
-        while (currentState == EZombieState.Idle)
-        {
-            float distance = Vector3.Distance(transform.position, PlayerManager.Instance.transform.position);
+        //    if (distance < trackingRange)
+        //    {
+        //        //현재 Idle() 코루틴을 멈추고 Chase()코루틴을 실행하도록 바꾸는 부분
+        //        ChangeState(EZombieState.Chase);
+        //    }
+        //    else if (distance < attackRange)
+        //    {
+        //        ChangeState(EZombieState.Attack);
+        //    }
 
-            if (distance < trackingRange)
-            {
-                //현재 Idle() 코루틴을 멈추고 Chase()코루틴을 실행하도록 바꾸는 부분
-                ChangeState(EZombieState.Chase);
-            }
-            else if (distance < attackRange)
-            {
-                ChangeState(EZombieState.Attack);
-            }
-
-            yield return null;
-        }
+        //    yield return null;
+        //}
     }
 
 
@@ -266,9 +266,15 @@ public class ZombieManager : MonoBehaviour
 
         yield return new WaitForSeconds(attackDelay);
 
+        
+
         float distance = Vector3.Distance(transform.position, PlayerManager.Instance.transform.position);
+        if (!PlayerManager.Instance.isLive)
+        {
+            ChangeState(EZombieState.Idle);
+        }
         //공격범위 벗어나면
-        if (distance > attackRange)
+        else if (distance > attackRange)
         {
             //추적모드로 전환
             ChangeState(EZombieState.Chase);

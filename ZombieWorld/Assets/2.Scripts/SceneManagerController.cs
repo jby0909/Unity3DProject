@@ -1,11 +1,19 @@
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using System.Collections;
+using Unity.VisualScripting;
 
 public class SceneManagerController : MonoBehaviour
 {
     //ΩÃ±€≈Ê ∆–≈œ
     public static SceneManagerController Instance { get; private set; }
-    
+
+    public Image panel;
+    public float fadeDuration = 1.0f;
+    public string nextSceneName;
+    private bool isFading = false;
+
     string currentSceneName;
 
     private void Awake()
@@ -63,5 +71,47 @@ public class SceneManagerController : MonoBehaviour
         Application.Quit();
     }
 
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.G) && !isFading)
+        {
+            StartCoroutine(FadeInAndLoadScene());
+        }
+    }
+
+    IEnumerator FadeInAndLoadScene()
+    {
+        isFading = true;
+
+        yield return StartCoroutine(FadeImage(0,1,fadeDuration));
+
+       
+
+        yield return StartCoroutine(FadeImage(1, 0, fadeDuration));
+
+        isFading = false;
+    }
+
+    IEnumerator FadeImage(float startAlpha, float endAlpha, float duration)
+    {
+        float elapsedTime = 0.0f;
+        Color panelColor = panel.color;
+        
+        while(elapsedTime < duration)
+        {
+            elapsedTime += Time.deltaTime;
+            float newAlpha = Mathf.Lerp(startAlpha, endAlpha, elapsedTime / duration);
+            panelColor.a = newAlpha;
+            panel.color = panelColor;
+            yield return null;
+        }
+        panelColor.a = endAlpha;
+        panel.color = panelColor;
+
+        if(isFading)
+        {
+            SceneManager.LoadScene(nextSceneName);
+        }
+    }
    
 }

@@ -3,6 +3,7 @@ using System.Collections;
 using UnityEditorInternal.Profiling.Memory.Experimental;
 using UnityEngine;
 using UnityEngine.Animations.Rigging; // NameSpace : 소속
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 //무기 여러가지 사용 예시
@@ -132,9 +133,21 @@ public class PlayerManager : MonoBehaviour
     private float maxRecoilAngle = 10.0f;
     private float currentRecoil = 0.0f;
     private float shakeDuration = 0.1f; //카메라 shake 시간
-    private float shakeMagnitude = 1.0f; //카메라라 shake 크기?
+    private float shakeMagnitude = 0.005f; //카메라 shake 크기?
     private Vector3 originalCameraPosition; //카메라 shake하므로 기존의 카메라 위치
     private Coroutine cameraShakeCoroutine; //카메라 shake 코루틴
+
+    
+
+    //문과 관련된 변수?
+    private bool lastOpenedForward = true;
+
+    //죽음 판정 변수
+    public bool isLive = true;
+
+    public GameObject GameOverObj;
+
+
 
     private void Awake()
     {
@@ -169,6 +182,22 @@ public class PlayerManager : MonoBehaviour
         bulletText.text = $"{firebulletCount}/{savebulletCount}";
         bulletText.gameObject.SetActive(false);
         flashLightObj.SetActive(false);
+        
+        //렌더링 셋팅(안개효과)
+        RenderSettings.fog = true; //안개 효과 활성화
+        RenderSettings.fogColor = new Color(134f/255f, 140f/255f, 159f/255f); //안개의 색 설정
+        RenderSettings.fogDensity = 0.1f; //안개의 밀도 설정
+        RenderSettings.fogStartDistance = 10f; //안개 시작 거리와 종료 거리 설정(Linear 모드에서 사용)
+        RenderSettings.fogEndDistance = 100f; 
+        RenderSettings.fogMode = FogMode.Exponential; //지수함수 기반 안개
+
+        if(mainCamera != null) //카메라의 Clear Flags를 Solid Color로 설정하고, 배경색을 안개색으로 설정
+        {
+            mainCamera.clearFlags = CameraClearFlags.SolidColor;
+            mainCamera.backgroundColor = RenderSettings.fogColor;
+        }
+
+        GameOverObj.SetActive(false);
     }
 
     void MouseSet()
@@ -220,6 +249,7 @@ public class PlayerManager : MonoBehaviour
         {
             ThirdPersonMovement();
         }
+
     }
 
     void AimSet()
@@ -332,8 +362,8 @@ public class PlayerManager : MonoBehaviour
                 StartCoroutine(FireWithDelay(rifleFireDelay));
                 animator.SetTrigger("Fire");
 
-                //ApplyRecoil();
-                //StartCameraShake();
+                ApplyRecoil();
+                StartCameraShake();
 
                 Ray ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward); //new Ray(시작위치(메인카메라의 위치), 방향(메인카메라의 앞쪽방향))
                 RaycastHit[] hits = Physics.RaycastAll(ray, weaponMaxDistance, TargetLayerMask);
@@ -410,7 +440,7 @@ public class PlayerManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.E))
         {
             //e키 입력시 애니메이션 실행
-            animator.SetTrigger("PickUp");
+            animator.SetTrigger("PickUpItem");
         }
     }
 
@@ -450,21 +480,34 @@ public class PlayerManager : MonoBehaviour
                     savebulletCount = 120;
                 }
                 bulletText.text = $"{firebulletCount}/{savebulletCount}";
-                bulletText.gameObject.SetActive(true);
+                //bulletText.gameObject.SetActive(true);
             }
             else if (hit.collider.name == "Door")
             {
-                Debug.Log("문 열려라 참깨!");
-                if(hit.collider.GetComponent<Door>().isOpen)
+                Door door = hit.collider.GetComponent<Door>(); //Door 컴포넌트를 가져옴
+                if (door != null) //Door컴포넌트가 있고
                 {
-                    Debug.Log("뒤에서 열린다구!");
-                    hit.collider.GetComponent<Animator>().SetTrigger("OpenBackward");
+                    if(door.isOpen) // 문이 열린상태라면
+                    {
+                        if (lastOpenedForward) // 마지막으로 앞으로 열렸다면
+                        {
+                            door.CloseForward(transform); //문을 앞방향으로 닫음
+                        }
+                        else
+                        {
+                            door.CloseBackward(transform); // 문을 역방향으로 닫음
+                        }
+                    }
+                    else // 문이 닫힌 상태라면
+                    {
+                        if (door.Open(transform)) // 문을 열고 해당 결과가 true면
+                        {
+                            lastOpenedForward = door.LastOpenForward; // 마지막으로 열린방향을 설정
+                        }
+                    }
+
                 }
-                else
-                {
-                    Debug.Log("앞에서 열린다구!");
-                    hit.collider.GetComponent<Animator>().SetTrigger("OpenForward");
-                }
+                
                 
             }
             Debug.Log("Item : " + hit.collider.name);
@@ -492,11 +535,22 @@ public class PlayerManager : MonoBehaviour
 
     void Dead()
     {
-        if(playerHp <= 0)
+        if(playerHp <= 0 && isLive)
         {
+            isLive = false;
             animator.SetTrigger("Dead");
+            SoundManager.Instance.PlaySfx("PlayerDead", transform.position);
             //game over 창 띄우기
+            StartCoroutine(ActivateGameOverUI());
         }
+    }
+
+    IEnumerator ActivateGameOverUI()
+    {
+        yield return new WaitForSeconds(3.0f);
+        GameOverObj.SetActive(true);
+        Cursor.lockState = CursorLockMode.None; // 마우스를 자유롭게 움직일 수 있도록 설정
+        Cursor.visible = true; // 마우스 커서 보이게 설정
     }
 
     void Throw()
@@ -507,71 +561,93 @@ public class PlayerManager : MonoBehaviour
         }
     }
 
+    void Reload()
+    {
+        if(Input.GetKeyDown(KeyCode.Q))
+        {
+            if(savebulletCount >= 30)
+            {
+                SoundManager.Instance.PlaySfx("ChangeWeapon", transform.position);
+                firebulletCount += 30;
+                savebulletCount -= 30;
+                bulletText.text = $"{firebulletCount}/{savebulletCount}";
+            }
+        }
+    }
+
     void Update()
     {
-        if(isMouseSet)
+        if(isLive)
         {
-            MouseSet();
-            CameraSet();
-            PlayerMovement();
-            AimSet();
-            Fire();
-            Run();
-            WeaponChange();
-            AnimationSet();
+            if (isMouseSet)
+            {
+                MouseSet();
+                CameraSet();
+                PlayerMovement();
+                AimSet();
+                Fire();
+                Run();
+                WeaponChange();
+                AnimationSet();
 
 
-            GetItemOperate();
+                GetItemOperate();
 
-            Throw();
-            Dead();
+                Reload();
 
-            ActionFlashLight();
+                Throw();
+                Dead();
+
+                ActionFlashLight();
+
+                //카메라 반동 예시
+                if (currentRecoil > 0)
+                {
+                    currentRecoil -= recoilStrength * Time.deltaTime; //반동을 서서히 감소시킴
+                    currentRecoil = Mathf.Clamp(currentRecoil, 0, maxRecoilAngle);
+                    Quaternion currentRotation = Camera.main.transform.rotation;
+                    Quaternion recoilRotation = Quaternion.Euler(-currentRecoil, 0, 0);
+
+                    //카메라가 반동에 따라 점점 위를 보는??
+                    //이부분을 실행하려면 카메라를 제어하는 코드를 꺼야 함(우리가 기존에 타겟을 보고 있으라는 코드를 넣었기 때문에)
+                    Camera.main.transform.rotation = currentRotation * recoilRotation;
+                }
+            }
+
+
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                isPause = !isPause;
+                if (isPause)
+                {
+
+                    Pause();
+                }
+                else
+                {
+                    ReGame();
+                }
+            }
         }
+       
         
 
-        if(Input.GetKeyDown(KeyCode.Escape))
-        {
-            isPause = !isPause;
-            if(isPause)
-            {
-                
-                Pause();
-            }
-            else
-            {
-                ReGame();
-            }
-        }
+        ////애니메이션의 speed 조절
+        //animator.speed = animationSpeed;
+
+        ////애니메이터의 0번째 레이어에 있는 애니메이션의 정보들을 가져온다
+        //AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(0);
+
+        ////현재 애니메이션의 이름이 currentAnimation이고 , 이 애니메이션의 (정규화된)시간이 1.0초 이상이면(해당 애니메이션이 끝났으면)
+        //if(stateInfo.IsName(currentAnimation) && stateInfo.normalizedTime >= 1.0f)
+        //{
+        //    //현재 애니메이션을 "Attack"으로 설정
+        //    currentAnimation = "Attack";
+        //    //애니메이션을 실행
+        //    animator.Play(currentAnimation);
+        //}
+
         
-
-        //애니메이션의 speed 조절
-        animator.speed = animationSpeed;
-
-        //애니메이터의 0번째 레이어에 있는 애니메이션의 정보들을 가져온다
-        AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(0);
-
-        //현재 애니메이션의 이름이 currentAnimation이고 , 이 애니메이션의 (정규화된)시간이 1.0초 이상이면(해당 애니메이션이 끝났으면)
-        if(stateInfo.IsName(currentAnimation) && stateInfo.normalizedTime >= 1.0f)
-        {
-            //현재 애니메이션을 "Attack"으로 설정
-            currentAnimation = "Attack";
-            //애니메이션을 실행
-            animator.Play(currentAnimation);
-        }
-
-        //카메라 반동 예시
-        if(currentRecoil > 0)
-        {
-            currentRecoil -= recoilStrength * Time.deltaTime; //반동을 서서히 감소시킴
-            currentRecoil = Mathf.Clamp(currentRecoil, 0, maxRecoilAngle);
-            Quaternion currentRotation = Camera.main.transform.rotation;
-            Quaternion recoilRotation = Quaternion.Euler(-currentRecoil, 0, 0);
-
-            //카메라가 반동에 따라 점점 위를 보는??
-            //이부분을 실행하려면 카메라를 제어하는 코드를 꺼야 함(우리가 기존에 타겟을 보고 있으라는 코드를 넣었기 때문에)
-            Camera.main.transform.rotation = currentRotation * recoilRotation; 
-        }
     }
 
     //샷건 예시
@@ -602,6 +678,7 @@ public class PlayerManager : MonoBehaviour
 
     void ApplyRecoil()
     {
+        
         Quaternion currentRotation = Camera.main.transform.rotation; // 현재 카메라 월드 회전값 가져오기
         Quaternion recoilRotation = Quaternion.Euler(-currentRecoil, 0, 0); // 반동을 계산해서 X축 상하 회전에 추가
         Camera.main.transform.rotation = currentRotation * recoilRotation; // 현재 회전 값에 반동을 곱하여 새로운 회전값?????뒤에 안보여요
@@ -634,6 +711,7 @@ public class PlayerManager : MonoBehaviour
         }
         Camera.main.transform.position = originalPosition;
         
+        
     }
 
 
@@ -648,6 +726,7 @@ public class PlayerManager : MonoBehaviour
         isMouseSet = true;
         isPause = !isPause;
         Cursor.lockState = CursorLockMode.Locked;
+        
     }
 
     void Pause()
@@ -864,6 +943,14 @@ public class PlayerManager : MonoBehaviour
         Debug.DrawLine(corners[2], corners[6], Color.green, 3.0f);
         Debug.DrawLine(corners[3], corners[7], Color.green, 3.0f);
         Debug.DrawRay(origin, direction * castDistance, Color.green);
+    }
+
+    //씬이 로드될 때 호출되는 함수
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        Debug.Log("Loaded Scene : " + scene.name);
+        //모든 씬이 로드될때마다 호출되기 때문에 조건문 필요(현재 씬이 무엇이냐에 따라 할 것이 다름. 씬마다 초기화를 설정)
+        //플레이어, AI, Item, Weapon.... 초기화 할것들이 다름(이전씬에서 저장된것을 불러오는 등)
     }
    
 
