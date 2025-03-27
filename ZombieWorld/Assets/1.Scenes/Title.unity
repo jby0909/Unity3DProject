@@ -1461,7 +1461,7 @@ MonoBehaviour:
     m_PressedTrigger: Pressed
     m_SelectedTrigger: Selected
     m_DisabledTrigger: Disabled
-  m_Interactable: 1
+  m_Interactable: 0
   m_TargetGraphic: {fileID: 644016230}
   m_OnClick:
     m_PersistentCalls:
@@ -3408,18 +3408,18 @@ MonoBehaviour:
       m_Calls: []
   m_FontData:
     m_Font: {fileID: 12800000, guid: 65e525e4c032d404baf483a1b8ff8970, type: 3}
-    m_FontSize: 100
+    m_FontSize: 200
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 0
-    m_MaxSize: 100
+    m_MaxSize: 200
     m_Alignment: 3
     m_AlignByGeometry: 0
     m_RichText: 1
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: ZOMBIE
+  m_Text: FINDz
 --- !u!222 &1582825768
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -4116,7 +4116,7 @@ MonoBehaviour:
   - name: Stage1_bgm
     clip: {fileID: 8300000, guid: ff27088769256914aa840f6ee8f0deb1, type: 3}
   - name: Title_bgm
-    clip: {fileID: 8300000, guid: 590ad1f525f092244836ae96c714b7fd, type: 3}
+    clip: {fileID: 8300000, guid: dd6472e915f46bd4abfc385548edf237, type: 3}
   - name: Success_bgm
     clip: {fileID: 8300000, guid: c9fd51e14aeaa6846a0ae747b195e6b5, type: 3}
   sfxClipList:
@@ -4135,7 +4135,7 @@ MonoBehaviour:
   - name: ChangeWeapon
     clip: {fileID: 8300000, guid: 5afa3184e22341a4395c29152f2260ad, type: 3}
   - name: DamageZombie
-    clip: {fileID: 8300000, guid: 56857f11c68cec740b9218d81e17b432, type: 3}
+    clip: {fileID: 8300000, guid: a1f57049234c4c34faa38e0c74bf36a8, type: 3}
   - name: ScreamZombie
     clip: {fileID: 8300000, guid: 294bb3517b9f91444bb9647ad65ded19, type: 3}
   - name: DefaultZombie

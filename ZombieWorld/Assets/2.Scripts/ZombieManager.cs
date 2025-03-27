@@ -1,7 +1,5 @@
 using System.Collections;
 using Unity.AI.Navigation;
-using Unity.VisualScripting;
-using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -39,6 +37,8 @@ public class ZombieManager : MonoBehaviour
 
     public static int ZombieCount = 0; //현재 scene에 존재하는 총 좀비의 수
 
+    private bool isDead = false;
+
     private void Awake()
     {
         animator = GetComponent<Animator>();
@@ -52,12 +52,13 @@ public class ZombieManager : MonoBehaviour
         rb.isKinematic = true;
 
         navMeshLinks = FindObjectsOfType<NavMeshLink>();
-       
+        ZombieCount++; // 시작할 때 좀비 수 하나 늘리기
+
     }
 
     void Start()
     {
-        ZombieCount++; // 시작할 때 좀비 수 하나 늘리기
+        
         //상태 초기화
         distanceTotarget = Vector3.Distance(transform.position, PlayerManager.Instance.transform.position);
         //currentState = EZombieState.Idle;
@@ -87,6 +88,7 @@ public class ZombieManager : MonoBehaviour
     {
         //점프했을 때 다른것을 하지 못하게 막는 코드
         if (isJumping) return;
+        if (isDead) return;
 
         if (stateCoroutine != null)
         {
@@ -150,6 +152,8 @@ public class ZombieManager : MonoBehaviour
     {
         Debug.Log(gameObject.name + " : 순찰중");
         animator.speed = animationWalkSpeed;
+        SoundManager.Instance.SetSFXVolume(1.0f);
+        SoundManager.Instance.PlaySfx("DefaultZombie", transform.position);
         currentPoint = Random.Range(0, patrolPoints.Length);
         while (currentState == EZombieState.Patrol)
         {
@@ -210,6 +214,7 @@ public class ZombieManager : MonoBehaviour
     private IEnumerator Chase()
     {
         Debug.Log(gameObject.name + " : 플레이어 추적중");
+        SoundManager.Instance.SetSFXVolume(1.0f);
         SoundManager.Instance.PlaySfx("DefaultZombie", transform.position);
         animator.speed = 1.0f;
 
@@ -262,6 +267,7 @@ public class ZombieManager : MonoBehaviour
         agent.isStopped = true; // 바라보고 나서는 멈춤
         animator.SetTrigger("Attack");
         //audioSource.PlayOneShot(audioClipScream);
+        SoundManager.Instance.SetSFXVolume(1.0f);
         SoundManager.Instance.PlaySfx("ScreamZombie", transform.position);
 
         yield return new WaitForSeconds(attackDelay);
@@ -351,8 +357,12 @@ public class ZombieManager : MonoBehaviour
 
     private IEnumerator Die()
     {
+        isDead = true;
         ZombieCount--; // 죽으면 좀비 수 줄이기
+        PlayerManager.Instance.zombieCountEvent.Invoke(); // 이벤트 발생시키기(좀비수 유아이에 갱신)
         Debug.Log(gameObject.name + " : 사망");
+        SoundManager.Instance.SetSFXVolume(1.0f);
+        SoundManager.Instance.PlaySfx("ScreamZombie");
         animator.speed = 1.0f;
         animator.SetTrigger("Die");
         gameObject.GetComponent<CapsuleCollider>().enabled = false;

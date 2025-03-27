@@ -1,8 +1,8 @@
 using System;
 using System.Collections;
-using UnityEditorInternal.Profiling.Memory.Experimental;
 using UnityEngine;
 using UnityEngine.Animations.Rigging; // NameSpace : 소속
+using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -153,6 +153,16 @@ public class PlayerManager : MonoBehaviour
     //scene매니저 변수
     SceneManagerController sceneManagerController;
 
+
+    public Text zombieText;
+    public int maxZombieCount = 5;
+    public UnityEvent zombieCountEvent;
+    private UnityEvent damageEvent;
+    public Image damageImage;
+
+    
+    
+
     private void Awake()
     {
         //싱글톤
@@ -190,10 +200,11 @@ public class PlayerManager : MonoBehaviour
         //렌더링 셋팅(안개효과)
         RenderSettings.fog = true; //안개 효과 활성화
         RenderSettings.fogColor = new Color(134f/255f, 140f/255f, 159f/255f); //안개의 색 설정
-        RenderSettings.fogDensity = 0.1f; //안개의 밀도 설정
+        RenderSettings.fogDensity = 0.05f; //안개의 밀도 설정
         RenderSettings.fogStartDistance = 10f; //안개 시작 거리와 종료 거리 설정(Linear 모드에서 사용)
         RenderSettings.fogEndDistance = 100f; 
         RenderSettings.fogMode = FogMode.Exponential; //지수함수 기반 안개
+        
 
         if(mainCamera != null) //카메라의 Clear Flags를 Solid Color로 설정하고, 배경색을 안개색으로 설정
         {
@@ -204,6 +215,24 @@ public class PlayerManager : MonoBehaviour
         GameOverObj.SetActive(false);
 
         sceneManagerController = GameObject.Find("SceneManagerController").GetComponent<SceneManagerController>();
+
+        zombieCountEvent = new UnityEvent();
+        zombieCountEvent.AddListener(UpdateZombieCountUI); // 이벤트 등록
+        UpdateZombieCountUI(); //처음 한번 유아이에 업데이트
+        damageEvent = new UnityEvent();
+        damageEvent.AddListener(OnDamageUI);
+    }
+
+    void UpdateZombieCountUI()
+    {
+        zombieText.text = $"{ZombieManager.ZombieCount} / {maxZombieCount}";
+    }
+
+    private void OnDamageUI()
+    {
+        Color color = damageImage.color;
+        color.a = MathF.Min(color.a + (45f / 255f), 107f / 255f);
+        damageImage.color = color;
     }
 
     void MouseSet()
@@ -360,7 +389,7 @@ public class PlayerManager : MonoBehaviour
                 
 
                 //Weapon Type에 따라서 MaxDistance Set하도록 수정해야 함
-                weaponMaxDistance = 1000.0f;
+                weaponMaxDistance = 15.0f;
 
                 isFire = true;
 
@@ -663,7 +692,6 @@ public class PlayerManager : MonoBehaviour
                 Dead();
                 if (ZombieManager.ZombieCount <= 0 && isLive)
                 {
-                    Debug.Log("성공");
                     Invoke("Success", 2.0f);
                 }
 
@@ -928,6 +956,7 @@ public class PlayerManager : MonoBehaviour
     {
         //총 쏘는 소리
         //audioSource.PlayOneShot(audioClipFire);
+        SoundManager.Instance.SetSFXVolume(0.5f);
         SoundManager.Instance.PlaySfx("Fire", transform.position);
         //이펙트 재생
         WeaponEffect.Play();
@@ -935,6 +964,7 @@ public class PlayerManager : MonoBehaviour
 
     public void FootStepSoundOn()
     {
+        SoundManager.Instance.SetSFXVolume(1.0f);
         SoundManager.Instance.PlaySfx("WalkStep");
         //if(밟은게 무엇이냐에 따라서)
         //{audioSource.PlayOneShot(발자국소리);}
@@ -966,6 +996,10 @@ public class PlayerManager : MonoBehaviour
         else if(other.gameObject.CompareTag("Attack"))
         {
             playerHp -= 30;
+            if(playerHp < 120)
+            {
+                damageEvent.Invoke();
+            }
             animator.SetTrigger("Damage");
             //audioSource.PlayOneShot(audioClipDamage);
             SoundManager.Instance.PlaySfx("GetDamage", transform.position);
@@ -1024,14 +1058,12 @@ public class PlayerManager : MonoBehaviour
 
     public void Restart()
     {
-        Debug.Log("yes버튼클릭");
         sceneManagerController.LoadScene("Stage1");
     }
 
     public void LoadMenuScene()
     {
         PauseObj.SetActive(false);
-        Debug.Log("no버튼클릭");
         sceneManagerController.LoadScene("Title");
         Time.timeScale = 1; //게임 시간 재개
     }

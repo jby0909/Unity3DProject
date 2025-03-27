@@ -2,7 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
+
 
 public class SoundManager : MonoBehaviour
 {
@@ -13,7 +13,7 @@ public class SoundManager : MonoBehaviour
     public AudioSource sfxSource;   //효과음 킬 것
 
     //딕셔너리로 audioClip 관리. 딕셔너리는 public으로 설정해도 유니티 인스펙터 창에 안 뜬다 
-    private Dictionary<string, AudioClip> DicbgmClips = new Dictionary<string, AudioClip>();
+    public Dictionary<string, AudioClip> DicbgmClips = new Dictionary<string, AudioClip>();
     private Dictionary<string, AudioClip> DicsfxClips = new Dictionary<string, AudioClip>();
 
     // -> 그래서 이런식으로 구현

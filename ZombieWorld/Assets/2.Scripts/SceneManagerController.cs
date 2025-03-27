@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using System.Collections;
-using Unity.VisualScripting;
+
 
 public class SceneManagerController : MonoBehaviour
 {
@@ -36,7 +36,8 @@ public class SceneManagerController : MonoBehaviour
         //현재 Scene이름을 활성화된 Scene의 이름으로 설정 
         currentSceneName = SceneManager.GetActiveScene().name;
         //bgm실행
-        SoundManager.Instance.PlayBGM(currentSceneName + "_bgm");
+        SoundManager.Instance.bgmSource.clip = SoundManager.Instance.DicbgmClips[currentSceneName + "_bgm"];
+        SoundManager.Instance.bgmSource.Play();
     }
 
     private void FindPanel()
@@ -65,7 +66,7 @@ public class SceneManagerController : MonoBehaviour
         SceneManager.sceneLoaded -= OnSceneLoaded;
         SceneManager.sceneLoaded += OnSceneLoaded;
         //효과음 볼륨조절, 실행
-        SoundManager.Instance.SetSFXVolume(0.5f);
+        SoundManager.Instance.SetSFXVolume(0.3f);
         SoundManager.Instance.PlaySfx("UIClick");
         
         
@@ -74,7 +75,7 @@ public class SceneManagerController : MonoBehaviour
         
         
         //씬 로드 후 해당 씬의 배경음 넣기 -> 로드 후라고 확정할 수 없음 -> SceneManager.Load()가 원래 비동기적으로 실행하는 함수라서?
-        SoundManager.Instance.SetBGMVolume(0.5f);
+        SoundManager.Instance.SetBGMVolume(0.3f);
         SoundManager.Instance.PlayBGM(sceneName + "_bgm");
 
         Debug.Log("Scene 변경 : " + sceneName);
