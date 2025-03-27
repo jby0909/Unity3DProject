@@ -145,9 +145,13 @@ public class PlayerManager : MonoBehaviour
     //죽음 판정 변수
     public bool isLive = true;
 
+    //게임오버/클리어 유아이
     public GameObject GameOverObj;
+    public GameObject GameClearObj;
+    public GameObject cutScene;
 
-
+    //scene매니저 변수
+    SceneManagerController sceneManagerController;
 
     private void Awake()
     {
@@ -198,6 +202,8 @@ public class PlayerManager : MonoBehaviour
         }
 
         GameOverObj.SetActive(false);
+
+        sceneManagerController = GameObject.Find("SceneManagerController").GetComponent<SceneManagerController>();
     }
 
     void MouseSet()
@@ -376,15 +382,15 @@ public class PlayerManager : MonoBehaviour
                         Debug.Log("충돌 : " + hits[i].collider.name);
 
                         //파티클을 raycast가 충돌한 위치에 생성
-                        //ParticleSystem particle = Instantiate(DamageParticleSystem, hits[i].point, Quaternion.identity);
-                        //particle.Play();
-                        ParticleManager.Instance.ParticlePlay(ParticleType.DamageExplosion, hits[i].point, Vector3.one);
-                        
+                        ParticleSystem particle = Instantiate(DamageParticleSystem, hits[i].point, Quaternion.identity);
+                        particle.Play();
+                        //ParticleManager.Instance.ParticlePlay(ParticleType.DamageExplosion, hits[i].point, Vector3.one);
+
                         //audioSource.PlayOneShot(audioClipZombieDamage); //데미지 받은 소리 재생
                         SoundManager.Instance.PlaySfx("DamageZombie", hits[i].transform.position);
 
-                        //일단 데미지를 10 넣기
-                        hits[i].collider.GetComponent<ZombieManager>().TakeDamage(10.0f);
+                        //일단 데미지를 30 넣기
+                        hits[i].collider.GetComponent<ZombieManager>().TakeDamage(30.0f);
                     }
                 }
                 else
@@ -541,14 +547,14 @@ public class PlayerManager : MonoBehaviour
             animator.SetTrigger("Dead");
             SoundManager.Instance.PlaySfx("PlayerDead", transform.position);
             //game over 창 띄우기
-            StartCoroutine(ActivateGameOverUI());
+            StartCoroutine(ActivateUI(GameOverObj));
         }
     }
 
-    IEnumerator ActivateGameOverUI()
+    IEnumerator ActivateUI(GameObject obj)
     {
         yield return new WaitForSeconds(3.0f);
-        GameOverObj.SetActive(true);
+        obj.SetActive(true);
         Cursor.lockState = CursorLockMode.None; // 마우스를 자유롭게 움직일 수 있도록 설정
         Cursor.visible = true; // 마우스 커서 보이게 설정
     }
@@ -575,6 +581,64 @@ public class PlayerManager : MonoBehaviour
         }
     }
 
+    void Success()
+    {
+        
+        isMouseSet = false;
+
+        animator.SetLayerWeight(1, 0);
+        animator.SetTrigger("Success");
+        SoundManager.Instance.PlayBGM("Success_bgm", 0.5f);
+        isAim = false;
+        crosshairObj.SetActive(false);
+        multiAimConstraint.data.offset = new Vector3(0, 0, 0);
+        animator.SetLayerWeight(1, 0); // 1번 레이어를 0으로
+
+        cutScene.SetActive(true);
+
+        //if (zoomCoroutine != null)
+        //{
+        //    StopCoroutine(zoomCoroutine);
+        //}
+
+        //if (isFirstPerson)
+        //{
+        //    SetTargetFOV(defaultFov);
+        //    zoomCoroutine = StartCoroutine(ZoomFieldOfView(targetFov));
+        //}
+        //else
+        //{
+        //    SetTargetDistance(thirdPersonDistance);
+        //    zoomCoroutine = StartCoroutine(ZoomCamera(targetDistance));
+        //}
+        //StartCoroutine(SuccessCameraMove());
+        StartCoroutine(ActivateUI(GameClearObj));
+    }
+
+    IEnumerator SuccessCameraMove()
+    {
+        Vector3 cameraTargetPosition = new Vector3(transform.position.x, transform.position.y + 1.5f, transform.position.z + 3.0f);
+        float distance = Vector3.Distance(cameraTransform.position, cameraTargetPosition);
+        Vector3 deltaTransform = transform.position;
+        float elapsed = 0.0f;
+        while (distance > 0.2f)
+        {
+            cameraTransform.position += (transform.position + new Vector3(0, thirdPersonOffset.y, 3.0f)) * Time.deltaTime;
+            cameraTransform.LookAt(transform.position + new Vector3(0, thirdPersonOffset.y, 0));
+
+            elapsed += Time.deltaTime;
+            distance = Vector3.Distance(mainCamera.transform.position, cameraTargetPosition);
+            yield return null;
+            if(elapsed >= 2.0f)
+            {
+                Cursor.lockState = CursorLockMode.None;
+                yield break;
+            }
+        }
+        Cursor.lockState = CursorLockMode.None;
+    }
+    
+
     void Update()
     {
         if(isLive)
@@ -597,6 +661,11 @@ public class PlayerManager : MonoBehaviour
 
                 Throw();
                 Dead();
+                if (ZombieManager.ZombieCount <= 0 && isLive)
+                {
+                    Debug.Log("성공");
+                    Invoke("Success", 2.0f);
+                }
 
                 ActionFlashLight();
 
@@ -748,11 +817,9 @@ public class PlayerManager : MonoBehaviour
         //audioSource.PlayOneShot(audioClipItemGet);
         SoundManager.Instance.PlaySfx("UIClick");
         PauseObj.SetActive(false);
-        Time.timeScale = 1;
+        Time.timeScale = 0;
         Application.Quit();
-        isMouseSet = true;
-        isPause = !isPause;
-        Cursor.lockState = CursorLockMode.Locked;
+       
     }
 
 
@@ -868,6 +935,7 @@ public class PlayerManager : MonoBehaviour
 
     public void FootStepSoundOn()
     {
+        SoundManager.Instance.PlaySfx("WalkStep");
         //if(밟은게 무엇이냐에 따라서)
         //{audioSource.PlayOneShot(발자국소리);}
 
@@ -951,6 +1019,21 @@ public class PlayerManager : MonoBehaviour
         Debug.Log("Loaded Scene : " + scene.name);
         //모든 씬이 로드될때마다 호출되기 때문에 조건문 필요(현재 씬이 무엇이냐에 따라 할 것이 다름. 씬마다 초기화를 설정)
         //플레이어, AI, Item, Weapon.... 초기화 할것들이 다름(이전씬에서 저장된것을 불러오는 등)
+    }
+
+
+    public void Restart()
+    {
+        Debug.Log("yes버튼클릭");
+        sceneManagerController.LoadScene("Stage1");
+    }
+
+    public void LoadMenuScene()
+    {
+        PauseObj.SetActive(false);
+        Debug.Log("no버튼클릭");
+        sceneManagerController.LoadScene("Title");
+        Time.timeScale = 1; //게임 시간 재개
     }
    
 

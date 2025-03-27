@@ -11,10 +11,11 @@ public class SceneManagerController : MonoBehaviour
 
     public Image panel;
     public float fadeDuration = 1.0f;
-    public string nextSceneName;
     private bool isFading = false;
 
     string currentSceneName;
+
+    private GameObject currentUI;
 
     private void Awake()
     {
@@ -38,20 +39,46 @@ public class SceneManagerController : MonoBehaviour
         SoundManager.Instance.PlayBGM(currentSceneName + "_bgm");
     }
 
+    private void FindPanel()
+    {
+        panel = GameObject.Find("Canvas").transform.Find("FadePanel").GetComponent<Image>();
+        //만약 panel이 없을경우 예외처리 생각하기
+    }
+
+    private void UpdateCurrentUI()
+    {
+        currentSceneName = SceneManager.GetActiveScene().name;
+        Debug.Log("현재씬 : " + currentSceneName);
+        currentUI = GameObject.Find("UI").transform.Find(currentSceneName + "UI").gameObject;
+    }
+
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        Debug.Log("유아이업데이트 이벤트");
+        UpdateCurrentUI();
+        currentUI.SetActive(true);
+    }
+
     public void LoadScene(string sceneName)
     {
+        Debug.Log("LoadScene에 들어옴");
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+        SceneManager.sceneLoaded += OnSceneLoaded;
         //효과음 볼륨조절, 실행
         SoundManager.Instance.SetSFXVolume(0.5f);
         SoundManager.Instance.PlaySfx("UIClick");
-
-        //몇초 후에 씬이 변경되도록? 코드 넣어야 함?
-        SceneManager.LoadScene(sceneName);
         
-        //씬 로드 후 해당 씬의 배경음 넣기
+        
+        //몇초 후에 씬이 변경되도록? 코드 넣어야 함?
+        StartCoroutine(FadeInAndLoadScene(sceneName));
+        
+        
+        //씬 로드 후 해당 씬의 배경음 넣기 -> 로드 후라고 확정할 수 없음 -> SceneManager.Load()가 원래 비동기적으로 실행하는 함수라서?
         SoundManager.Instance.SetBGMVolume(0.5f);
         SoundManager.Instance.PlayBGM(sceneName + "_bgm");
 
         Debug.Log("Scene 변경 : " + sceneName);
+        
     }
 
     public void ExitScene()
@@ -73,27 +100,33 @@ public class SceneManagerController : MonoBehaviour
 
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.G) && !isFading)
-        {
-            StartCoroutine(FadeInAndLoadScene());
-        }
+        //if (Input.GetKeyDown(KeyCode.G) && !isFading)
+        //{
+        //    StartCoroutine(FadeInAndLoadScene());
+        //}
     }
 
-    IEnumerator FadeInAndLoadScene()
+    IEnumerator FadeInAndLoadScene(string sceneName)
     {
+        Debug.Log("페이드인/아웃 & 씬 로드 코루틴");
         isFading = true;
 
-        yield return StartCoroutine(FadeImage(0,1,fadeDuration));
-
-       
-
-        yield return StartCoroutine(FadeImage(1, 0, fadeDuration));
+        yield return StartCoroutine(FadeImage(0,1,fadeDuration, sceneName));
+        UpdateCurrentUI();
+        currentUI.SetActive(false);
 
         isFading = false;
+
+        yield return StartCoroutine(FadeImage(1, 0, fadeDuration, sceneName));
+        
+
     }
 
-    IEnumerator FadeImage(float startAlpha, float endAlpha, float duration)
+    IEnumerator FadeImage(float startAlpha, float endAlpha, float duration, string sceneName)
     {
+        Debug.Log("진짜 페이드인 코루틴");
+        Debug.Log("isFading 상태 : " + isFading);
+        panel.gameObject.SetActive(true);
         float elapsedTime = 0.0f;
         Color panelColor = panel.color;
         
@@ -107,10 +140,11 @@ public class SceneManagerController : MonoBehaviour
         }
         panelColor.a = endAlpha;
         panel.color = panelColor;
-
-        if(isFading)
+        panel.gameObject.SetActive(false);
+        if (isFading)
         {
-            SceneManager.LoadScene(nextSceneName);
+            Debug.Log("바뀔 씬 이름 : " + sceneName);
+            SceneManager.LoadScene(sceneName);
         }
     }
    

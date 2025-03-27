@@ -37,7 +37,7 @@ public class ZombieManager : MonoBehaviour
     public float jumpDuration = 1.0f;
     private NavMeshLink[] navMeshLinks;
 
-    private static int ZombieCount = 0; //현재 scene에 존재하는 총 좀비의 수
+    public static int ZombieCount = 0; //현재 scene에 존재하는 총 좀비의 수
 
     private void Awake()
     {
